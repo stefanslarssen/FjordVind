@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react'
-import { MapContainer, TileLayer, Popup, CircleMarker, useMap, ZoomControl, Polygon, Circle } from 'react-leaflet'
+import { MapContainer, TileLayer, Popup, CircleMarker, useMap, useMapEvents, ZoomControl, Polygon, Circle } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
@@ -192,6 +192,31 @@ function MapController({ center, zoom }) {
     }
   }, [center, zoom, map])
   return null
+}
+
+// Component for tracking zoom level changes
+function ZoomTracker({ onZoomChange }) {
+  useMapEvents({
+    zoomend: (e) => {
+      onZoomChange(e.target.getZoom())
+    }
+  })
+  return null
+}
+
+// Calculate marker radius based on zoom level
+function getMarkerRadius(zoom, hasDisease = false) {
+  // Zoom levels: 5 (country) to 18 (street level)
+  // At zoom 5-6: very small markers (3-4px)
+  // At zoom 7-9: small markers (5-6px)
+  // At zoom 10-12: medium markers (7-8px)
+  // At zoom 13+: large markers (9-10px)
+  const baseRadius = hasDisease ? 2 : 1
+  if (zoom <= 6) return baseRadius + 2
+  if (zoom <= 8) return baseRadius + 4
+  if (zoom <= 10) return baseRadius + 5
+  if (zoom <= 12) return baseRadius + 6
+  return baseRadius + 8
 }
 
 // Search Component with autocomplete
@@ -912,6 +937,7 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
         key={`map-${center.lat.toFixed(4)}-${center.lng.toFixed(4)}`}
       >
         <MapController center={center} zoom={zoom} />
+        <ZoomTracker onZoomChange={setZoom} />
         <ZoomControl position="bottomleft" />
 
         {/* Kartfliser fra OpenStreetMap */}
@@ -1213,12 +1239,12 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
               <CircleMarker
                 key={`point-${props?.loknr || idx}`}
                 center={[lat, lng]}
-                radius={hasDisease ? 10 : 8}
+                radius={getMarkerRadius(zoom, hasDisease)}
                 pathOptions={{
                   fillColor: fillColor,
                   fillOpacity: 0.7,
                   color: borderColor,
-                  weight: hasDisease ? 3 : 2
+                  weight: zoom <= 8 ? 1 : (hasDisease ? 3 : 2)
                 }}
               >
                 <Popup>
