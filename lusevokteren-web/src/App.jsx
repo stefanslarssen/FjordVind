@@ -1,0 +1,324 @@
+import { Routes, Route, NavLink, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useAuth } from './contexts/AuthContext'
+import { useLanguage } from './contexts/LanguageContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import OfflineIndicator from './components/OfflineIndicator'
+import OversiktPage from './pages/OversiktPage'
+import HistoryPage from './pages/HistoryPage'
+import LocationsPage from './pages/LocationsPage'
+import MapPage from './pages/MapPage'
+import PredictionsPage from './pages/PredictionsPage'
+import AlertsPage from './pages/AlertsPage'
+import TreatmentsPage from './pages/TreatmentsPage'
+import EnvironmentPage from './pages/EnvironmentPage'
+import ForingPage from './pages/ForingPage'
+import RapporterPage from './pages/RapporterPage'
+import InnstillingerPage from './pages/InnstillingerPage'
+import NyTellingPage from './pages/NyTellingPage'
+import NaboSammenligningPage from './pages/NaboSammenligningPage'
+import MyFarmsPage from './pages/MyFarmsPage'
+import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+function AppLayout() {
+  const [alertCounts, setAlertCounts] = useState({ critical: 0, warning: 0, unread: 0 })
+  const { user, signOut, isAuthenticated, isDemoMode } = useAuth()
+  const { t } = useLanguage()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadAlertCounts()
+      const interval = setInterval(loadAlertCounts, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [isAuthenticated])
+
+  async function loadAlertCounts() {
+    try {
+      const response = await fetch(`${API_URL}/api/alerts/counts`)
+      if (response.ok) {
+        const data = await response.json()
+        setAlertCounts(data)
+      }
+    } catch (error) {
+      console.error('Failed to load alert counts:', error)
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await signOut()
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
+  const userRole = user?.role || user?.user_metadata?.role || 'bruker'
+  const userName = user?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Bruker'
+
+  return (
+    <div className="layout">
+      <aside className="sidebar">
+        {/* FjordVind Icon */}
+        <svg viewBox="0 0 100 100" className="brand-icon">
+          <path d="M15 65 L32 35 L50 50 L70 22" stroke="#1e40af" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M10 78 L45 78" stroke="#3b82f6" strokeWidth="4.5" fill="none" strokeLinecap="round"/>
+          <path d="M35 88 L85 88" stroke="#93c5fd" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+        </svg>
+        <h1 className="brand-title">FjordVind</h1>
+        <div className="subtitle">Beskytter Norges kyst</div>
+
+        {/* User Info */}
+        <div style={{
+          margin: '20px 0',
+          padding: '12px',
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: 'var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '14px'
+            }}>
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontWeight: '500',
+                fontSize: '14px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {userName}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: userRole === 'admin' ? 'rgba(239, 68, 68, 0.2)' :
+                             userRole === 'driftsleder' ? 'rgba(59, 130, 246, 0.2)' :
+                             'rgba(34, 197, 94, 0.2)',
+                  color: userRole === 'admin' ? '#ef4444' :
+                         userRole === 'driftsleder' ? '#3b82f6' :
+                         '#22c55e',
+                  fontSize: '11px',
+                  fontWeight: '500'
+                }}>
+                  {userRole}
+                </span>
+                {isDemoMode && (
+                  <span style={{
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(234, 179, 8, 0.2)',
+                    color: '#eab308',
+                    fontSize: '11px'
+                  }}>
+                    demo
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <nav>
+          <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
+            {t('nav.oversikt')}
+          </NavLink>
+
+          <NavLink to="/ny-telling" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.nyTelling')}
+          </NavLink>
+
+          <NavLink to="/predictions" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.prediksjoner')}
+          </NavLink>
+
+          <NavLink to="/alerts" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.varsler')}
+            {alertCounts.unread > 0 && (
+              <span className="badge">{alertCounts.unread}</span>
+            )}
+          </NavLink>
+
+          <NavLink to="/treatments" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.behandlinger')}
+          </NavLink>
+
+          <NavLink to="/locations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {t('nav.lokasjoner')}
+          </NavLink>
+
+          <NavLink to="/map" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {t('nav.kart')}
+          </NavLink>
+
+          <NavLink to="/nabo-sammenligning" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.omrade')}
+          </NavLink>
+
+          <NavLink to="/environment" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.miljodata')}
+          </NavLink>
+
+          <NavLink to="/foring" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.foring')}
+          </NavLink>
+
+          <NavLink to="/rapporter" className={({ isActive }) => `nav-item new-feature ${isActive ? 'active' : ''}`}>
+            {t('nav.rapporter')}
+          </NavLink>
+
+          <NavLink to="/history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {t('nav.historikk')}
+          </NavLink>
+
+          <NavLink to="/innstillinger" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {t('nav.innstillinger')}
+          </NavLink>
+        </nav>
+
+        {/* Logout Button */}
+        <div style={{ marginTop: 'auto', padding: '16px 0' }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
+              e.currentTarget.style.color = '#ef4444'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
+          >
+            {t('nav.loggUt')}
+          </button>
+        </div>
+      </aside>
+
+      <main className="main">
+        <Routes>
+          <Route path="/" element={<OversiktPage />} />
+          <Route path="/ny-telling" element={<NyTellingPage />} />
+          <Route path="/predictions" element={<PredictionsPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/treatments" element={<TreatmentsPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/locations" element={<LocationsPage />} />
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/mine-anlegg" element={<MyFarmsPage />} />
+          <Route path="/nabo-sammenligning" element={<NaboSammenligningPage />} />
+          <Route path="/environment" element={<EnvironmentPage />} />
+          <Route path="/foring" element={<ForingPage />} />
+          <Route path="/rapporter" element={<RapporterPage />} />
+          <Route path="/innstillinger" element={<InnstillingerPage />} />
+        </Routes>
+      </main>
+    </div>
+  )
+}
+
+export default function App() {
+  const { loading } = useAuth()
+  const { t } = useLanguage()
+
+  // Load saved theme on app start
+  useEffect(() => {
+    const stored = localStorage.getItem('fjordvind_settings')
+    if (stored) {
+      try {
+        const settings = JSON.parse(stored)
+        if (settings.theme) {
+          document.documentElement.setAttribute('data-theme', settings.theme)
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, [])
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-dark)'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '60px', height: '60px', marginBottom: '16px' }}>
+            <path d="M15 65 L32 35 L50 50 L70 22" stroke="#1e40af" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10 78 L45 78" stroke="#3b82f6" strokeWidth="4.5" fill="none" strokeLinecap="round"/>
+            <path d="M35 88 L85 88" stroke="#93c5fd" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+          </svg>
+          <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+        {/* Protected routes */}
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+      <OfflineIndicator />
+    </>
+  )
+}

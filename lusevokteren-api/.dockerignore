@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+tests/
+*.test.js
+coverage/
+.nyc_output/
+
+# Documentation (built separately)
+docs/
+
+# Development files
+.eslintrc*
+.prettierrc*
+jest.config.js
+nodemon.json
+
+# Logs
+logs/
+*.log
+
+# Uploads (mounted as volume)
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore

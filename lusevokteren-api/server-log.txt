@@ -1,0 +1,13 @@
+🚀 Lusevokteren API running on port 3000
+📊 Dashboard stats: http://localhost:3000/api/stats
+🐟 Samples: http://localhost:3000/api/samples
+📍 Locations: http://localhost:3000/api/locations
+🗺️ Nearby farms: http://localhost:3000/api/nearby-farms
+🗺️ Locality boundaries: http://localhost:3000/api/locality-boundaries?bbox=minLng,minLat,maxLng,maxLat
+⏳ Pre-caching company data...
+Fetching all localities with owner data from WFS...
+  Batch 1: 1000 features (total: 1000)
+  Batch 2: 751 features (total: 1751)
+✅ Fetched 1751 localities with owner data
+✅ Found 582 unique aquaculture companies
+✅ Company data cached and ready
