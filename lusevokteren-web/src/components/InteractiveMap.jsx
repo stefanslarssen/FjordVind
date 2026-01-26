@@ -183,19 +183,36 @@ const DiseaseStatsPanel = ({ localityBoundaries, week, year }) => {
   )
 }
 
-// Component for re-centering map
-function MapController({ center, zoom }) {
+// Component for re-centering map (only when center changes, not zoom)
+function MapController({ center, targetZoom }) {
   const map = useMap()
+  const lastCenter = useRef(null)
+
   useEffect(() => {
     if (center) {
-      map.setView([center.lat, center.lng], zoom || map.getZoom())
+      // Kun flytt kartet hvis senteret faktisk endret seg
+      const centerChanged = !lastCenter.current ||
+        lastCenter.current.lat !== center.lat ||
+        lastCenter.current.lng !== center.lng
+
+      if (centerChanged) {
+        lastCenter.current = center
+        map.setView([center.lat, center.lng], targetZoom || map.getZoom())
+      }
     }
-  }, [center, zoom, map])
+  }, [center, targetZoom, map])
   return null
 }
 
-// Component for tracking zoom level changes
+// Component for tracking zoom level changes (for marker sizing only)
 function ZoomTracker({ onZoomChange }) {
+  const map = useMap()
+
+  useEffect(() => {
+    // Set initial zoom
+    onZoomChange(map.getZoom())
+  }, [])
+
   useMapEvents({
     zoomend: (e) => {
       onZoomChange(e.target.getZoom())
@@ -752,40 +769,36 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
   }
 
   // Når en lokalitet velges fra dropdown eller søk, zoom inn automatisk
+  // Kun zoom når bruker aktivt velger en lokalitet, ikke ved data-lasting
   useEffect(() => {
     const locationToZoom = selectedLocation || searchSelected
-    if (locationToZoom) {
+    if (locationToZoom && localityBoundaries?.features) {
       // Finn koordinater for valgt lokalitet
-      if (localityBoundaries?.features) {
-        const selectedFeature = localityBoundaries.features.find(
-          f => f.properties?.loknr?.toString() === locationToZoom.toString()
-        )
-        if (selectedFeature?.geometry?.coordinates) {
-          // Håndter både Point og Polygon geometri
-          if (selectedFeature.geometry.type === 'Point') {
-            const [lng, lat] = selectedFeature.geometry.coordinates
-            setCenter({ lat, lng })
+      const selectedFeature = localityBoundaries.features.find(
+        f => f.properties?.loknr?.toString() === locationToZoom.toString()
+      )
+      if (selectedFeature?.geometry?.coordinates) {
+        // Håndter både Point og Polygon geometri
+        if (selectedFeature.geometry.type === 'Point') {
+          const [lng, lat] = selectedFeature.geometry.coordinates
+          setCenter({ lat, lng })
+          setZoom(14)
+        } else {
+          // Polygon - beregn senterpunkt
+          const coords = selectedFeature.geometry.type === 'MultiPolygon'
+            ? selectedFeature.geometry.coordinates[0][0]
+            : selectedFeature.geometry.coordinates[0]
+          if (coords && coords.length > 0) {
+            const avgLng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length
+            const avgLat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length
+            setCenter({ lat: avgLat, lng: avgLng })
             setZoom(14)
-          } else {
-            // Polygon - beregn senterpunkt
-            const coords = selectedFeature.geometry.type === 'MultiPolygon'
-              ? selectedFeature.geometry.coordinates[0][0]
-              : selectedFeature.geometry.coordinates[0]
-            if (coords && coords.length > 0) {
-              const avgLng = coords.reduce((sum, c) => sum + c[0], 0) / coords.length
-              const avgLat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length
-              setCenter({ lat: avgLat, lng: avgLng })
-              setZoom(14)
-            }
           }
         }
       }
-    } else if (!searchSelected) {
-      // Tilbakestill til Norge-visning
-      setCenter({ lat: 65.0, lng: 13.0 })
-      setZoom(5)
     }
-  }, [selectedLocation, searchSelected, localityBoundaries])
+    // Fjernet auto-reset til Norge-visning - la brukeren beholde sin zoom
+  }, [selectedLocation, searchSelected])
 
   useEffect(() => {
     loadMapData()
@@ -936,7 +949,7 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
         zoomControl={false}
         key={`map-${center.lat.toFixed(4)}-${center.lng.toFixed(4)}`}
       >
-        <MapController center={center} zoom={zoom} />
+        <MapController center={center} targetZoom={14} />
         <ZoomTracker onZoomChange={setZoom} />
         <ZoomControl position="bottomleft" />
 
