@@ -13,6 +13,175 @@ L.Icon.Default.mergeOptions({
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
+// Sykdomsstatistikk sidepanel (som BarentsWatch)
+const DiseaseStatsPanel = ({ localityBoundaries, week, year }) => {
+  const [isExpanded, setIsExpanded] = useState(true)
+
+  const stats = useMemo(() => {
+    const features = localityBoundaries?.features || []
+    const diseaseCount = { pd: 0, ila: 0, bkd: 0, francisellose: 0, other: 0 }
+    const liceStats = { overLimit: 0, underLimit: 0, total: 0 }
+
+    features.forEach(f => {
+      const diseases = f.properties?.diseases || []
+      const lice = f.properties?.avgAdultFemaleLice
+
+      // Sykdomstelling
+      diseases.forEach(d => {
+        if (d === 'PANKREASSYKDOM') diseaseCount.pd++
+        else if (d === 'INFEKSIOES_LAKSEANEMI') diseaseCount.ila++
+        else if (d === 'BAKTERIELL_NYRESYKE') diseaseCount.bkd++
+        else if (d === 'FRANCISELLOSE') diseaseCount.francisellose++
+        else diseaseCount.other++
+      })
+
+      // Lusetelling
+      if (lice !== null && lice !== undefined) {
+        liceStats.total++
+        if (lice >= 0.5) liceStats.overLimit++
+        else liceStats.underLimit++
+      }
+    })
+
+    return { diseaseCount, liceStats, totalLocalities: features.length }
+  }, [localityBoundaries])
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: '10px',
+      right: '10px',
+      width: '320px',
+      maxHeight: 'calc(100% - 80px)',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+      zIndex: 1000,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '12px 16px',
+        background: '#1a3a5c',
+        color: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <span style={{ fontWeight: 600, fontSize: '16px' }}>{stats.totalLocalities} lokaliteter</span>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}>Valgt uke</button>
+        </div>
+      </div>
+
+      {/* Uke info */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f8f9fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: '#1a3a5c', fontWeight: 600 }}>UKE {week || 5}</span>
+          <span style={{ color: '#666', fontSize: '13px' }}>{year || 2026}</span>
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
+        {/* Lusegrensestatus */}
+        <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#333' }}>Lusegrensestatus</h3>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f44336' }}>{stats.liceStats.overLimit}</div>
+              <div style={{ fontSize: '11px', color: '#666' }}>Over lusegrensen</div>
+            </div>
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#4CAF50' }}>{stats.liceStats.underLimit}</div>
+              <div style={{ fontSize: '11px', color: '#666' }}>Under lusegrensen</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sykdomsstatus */}
+        <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#333' }}>Sykdomsstatus</h3>
+
+          {stats.diseaseCount.pd > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: '#7B68EE', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: '14px'
+              }}>{stats.diseaseCount.pd}</div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>Pankreassykdom (PD)</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>{stats.diseaseCount.pd} av lokalitetene har mistanke om eller diagnosen pankreassykdom</div>
+              </div>
+            </div>
+          )}
+
+          {stats.diseaseCount.ila > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: '#20B2AA', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: '14px'
+              }}>{stats.diseaseCount.ila}</div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>Infeksiøs lakseanemi (ILA)</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>{stats.diseaseCount.ila} av lokalitetene har mistanke om eller diagnosen infeksiøs lakseanemi</div>
+              </div>
+            </div>
+          )}
+
+          {stats.diseaseCount.bkd > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: '#FF6347', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: '14px'
+              }}>{stats.diseaseCount.bkd}</div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>Bakteriell nyresyke (BKD)</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>{stats.diseaseCount.bkd} av lokalitetene har mistanke om eller diagnosen bakteriell nyresyke</div>
+              </div>
+            </div>
+          )}
+
+          {stats.diseaseCount.francisellose > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: '#FF6347', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: '14px'
+              }}>{stats.diseaseCount.francisellose}</div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>Francisellose</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>{stats.diseaseCount.francisellose} av lokalitetene har diagnosen francisellose</div>
+              </div>
+            </div>
+          )}
+
+          {stats.diseaseCount.pd === 0 && stats.diseaseCount.ila === 0 && stats.diseaseCount.bkd === 0 && stats.diseaseCount.francisellose === 0 && (
+            <div style={{ color: '#888', fontSize: '13px' }}>Ingen registrerte sykdommer denne uken</div>
+          )}
+        </div>
+
+        {/* Datakilder */}
+        <div style={{ padding: '16px' }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600, color: '#333' }}>Datakilder</h3>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            <p style={{ margin: '4px 0' }}>• BarentsWatch Fish Health API</p>
+            <p style={{ margin: '4px 0' }}>• Mattilsynet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Component for re-centering map
 function MapController({ center, zoom }) {
@@ -374,12 +543,12 @@ const CollapsibleControls = ({
 }
 
 // Compact Legend Component - øverst til høyre
-const CompactLegend = ({ localities }) => {
+const CompactLegend = ({ localities, localityBoundaries }) => {
   const [isExpanded, setIsExpanded] = React.useState(false)
 
   const stats = React.useMemo(() => {
     if (!localities || localities.length === 0) {
-      return { ok: 0, warning: 0, danger: 0, fallow: 0, noReport: 0, total: 0 }
+      return { ok: 0, warning: 0, danger: 0, fallow: 0, noReport: 0, total: 0, pd: 0, ila: 0, bkd: 0 }
     }
 
     return localities.reduce((acc, loc) => {
@@ -391,8 +560,23 @@ const CompactLegend = ({ localities }) => {
       else acc.ok++
       acc.total++
       return acc
-    }, { ok: 0, warning: 0, danger: 0, fallow: 0, noReport: 0, total: 0 })
+    }, { ok: 0, warning: 0, danger: 0, fallow: 0, noReport: 0, total: 0, pd: 0, ila: 0, bkd: 0 })
   }, [localities])
+
+  // Beregn sykdomsstatistikk fra lokalitetsdata
+  const diseaseStats = React.useMemo(() => {
+    const features = localityBoundaries?.features || []
+    return features.reduce((acc, f) => {
+      const diseases = f.properties?.diseases || []
+      diseases.forEach(d => {
+        if (d === 'PANKREASSYKDOM') acc.pd++
+        else if (d === 'INFEKSIOES_LAKSEANEMI') acc.ila++
+        else if (d === 'BAKTERIELL_NYRESYKE') acc.bkd++
+        else if (d === 'FRANCISELLOSE') acc.francisellose++
+      })
+      return acc
+    }, { pd: 0, ila: 0, bkd: 0, francisellose: 0 })
+  }, [localityBoundaries])
 
   return (
     <div style={{
@@ -483,15 +667,28 @@ const CompactLegend = ({ localities }) => {
               <span style={{ marginLeft: 'auto' }}>{stats.noReport}</span>
             </div>
             <div style={{ height: '1px', background: '#eee', margin: '6px 0' }}></div>
-            <div style={{ fontSize: '11px', fontWeight: 500, color: '#666', marginBottom: '4px' }}>Soner og områder</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#444' }}>
-              <div style={{ width: '14px', height: '14px', background: '#D4A574', borderRadius: '50%', border: '2px solid #8B6914' }}></div>
-              <span>ILA/PD-sone</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#444', marginTop: '4px' }}>
-              <div style={{ width: '14px', height: '14px', background: 'rgba(46,139,46,0.15)', border: '2px solid #2E8B2E' }}></div>
-              <span>Verneområde</span>
-            </div>
+            <div style={{ fontSize: '11px', fontWeight: 500, color: '#666', marginBottom: '4px' }}>Sykdomsstatus</div>
+            {diseaseStats.pd > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#444' }}>
+                <div style={{ width: '20px', height: '20px', background: '#7B68EE', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>{diseaseStats.pd}</div>
+                <span>Pankreassykdom (PD)</span>
+              </div>
+            )}
+            {diseaseStats.ila > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#444', marginTop: '4px' }}>
+                <div style={{ width: '20px', height: '20px', background: '#20B2AA', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>{diseaseStats.ila}</div>
+                <span>Infeksiøs lakseanemi (ILA)</span>
+              </div>
+            )}
+            {diseaseStats.bkd > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#444', marginTop: '4px' }}>
+                <div style={{ width: '20px', height: '20px', background: '#FF6347', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>{diseaseStats.bkd}</div>
+                <span>Bakteriell nyresyke (BKD)</span>
+              </div>
+            )}
+            {diseaseStats.pd === 0 && diseaseStats.ila === 0 && diseaseStats.bkd === 0 && (
+              <div style={{ color: '#888', fontSize: '11px' }}>Ingen registrerte sykdommer</div>
+            )}
           </div>
         </div>
       )}
@@ -511,7 +708,7 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
   const [zoom, setZoom] = useState(5)
   const [loading, setLoading] = useState(true)
   const [showPolygons, setShowPolygons] = useState(true)
-  const [showActualPolygons, setShowActualPolygons] = useState(false)
+  const [showActualPolygons, setShowActualPolygons] = useState(true) // Vis polygon-grenser som standard
   const [filterStatus, setFilterStatus] = useState('all')
   const [facilityTypeFilter, setFacilityTypeFilter] = useState('all')
   const [showSeaFarms, setShowSeaFarms] = useState(true)
@@ -576,12 +773,11 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
     }
   }, [showPolygons])
 
-  // Fetch actual polygon boundaries when enabled
+  // Fetch actual polygon boundaries on mount
   useEffect(() => {
-    if (showActualPolygons && !polygonBoundaries) {
-      loadActualPolygonBoundaries()
-    }
-  }, [showActualPolygons])
+    console.log('Loading polygon boundaries from Fiskeridirektoratet...')
+    loadActualPolygonBoundaries()
+  }, [])
 
   // Fetch disease zones when enabled
   useEffect(() => {
@@ -613,12 +809,12 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
 
   async function loadActualPolygonBoundaries() {
     try {
-      // Fetch polygon geometry from BarentsWatch
-      const response = await fetch(`${API_URL}/api/locality-boundaries?geometryType=polygon`)
+      // Hent ekte polygon-grenser fra Fiskeridirektoratet
+      const response = await fetch(`${API_URL}/api/locality-polygons`)
       if (response.ok) {
         const data = await response.json()
         setPolygonBoundaries(data)
-        console.log(`Loaded ${data.features?.length || 0} polygon boundaries from BarentsWatch`)
+        console.log(`Loaded ${data.features?.length || 0} real polygon boundaries from Fiskeridirektoratet`)
       }
     } catch (err) {
       console.error('Failed to load polygon boundaries:', err)
@@ -678,7 +874,8 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
   return (
     <div style={{ position: 'relative', height: '100%' }}>
       {/* Kompakt tegnforklaring øverst til høyre */}
-      <CompactLegend localities={allLocalities} />
+      {/* Sykdomsstatistikk sidepanel (BarentsWatch-stil) */}
+      <DiseaseStatsPanel localityBoundaries={localityBoundaries} week={5} year={2026} />
 
       {/* Kompakt kontrollpanel - kan minimeres */}
       <CollapsibleControls
@@ -852,15 +1049,12 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
           if (!feature.geometry || feature.geometry.type === 'Point') return null
 
           const props = feature.properties
-          const lice = props?.avgAdultFemaleLice
           const loknr = props?.loknr?.toString()
           const isSelected = loknr === (selectedLocation || searchSelected)?.toString()
 
-          // Bestem farge basert på lusestatus
-          let fillColor = '#3399ff'
-          if (lice >= 0.10) fillColor = '#f44336'
-          else if (lice >= 0.08) fillColor = '#ff9800'
-          else if (lice !== null && lice !== undefined) fillColor = '#4CAF50'
+          // BarentsWatch-stil: Lyseblå fyll med mørkere blå kant
+          const fillColor = '#8ecae6' // Lyseblå (som BarentsWatch)
+          const borderColor = '#219ebc' // Mørkere blå kant
 
           // Konverter koordinater til Leaflet format
           let positions = []
@@ -882,21 +1076,21 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
               positions={positions}
               pathOptions={{
                 fillColor: fillColor,
-                fillOpacity: isSelected ? 0.5 : 0.2,
-                color: isSelected ? '#000' : fillColor,
-                weight: isSelected ? 3 : 1
+                fillOpacity: isSelected ? 0.6 : 0.4,
+                color: borderColor,
+                weight: isSelected ? 2 : 1
               }}
             >
               <Popup>
                 <div style={{ minWidth: '200px' }}>
                   <h3 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
-                    {props?.name || 'Ukjent'}
+                    {props?.navn || props?.name || 'Ukjent'}
                   </h3>
                   <p><strong>Lok.nr:</strong> {props?.loknr}</p>
-                  <p><strong>Eier:</strong> {props?.owner}</p>
-                  {lice !== null && lice !== undefined && (
-                    <p><strong>Lus:</strong> {lice.toFixed(2)}</p>
-                  )}
+                  <p><strong>Eier:</strong> {props?.organisasjon || props?.owner}</p>
+                  <p><strong>Kommune:</strong> {props?.kommune || props?.municipality}</p>
+                  <p><strong>Fylke:</strong> {props?.fylke}</p>
+                  <p><strong>Status:</strong> {props?.status_lokalitet}</p>
                 </div>
               </Popup>
             </Polygon>
@@ -975,39 +1169,56 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
             const props = feature.properties
             const lice = props?.avgAdultFemaleLice
             const status = props?.status
+            const diseases = props?.diseases || []
 
-            // Bestem farge basert på lusestatus
-            let fillColor = '#3399ff' // Default blue
-            let borderColor = '#0066cc'
+            // BarentsWatch-stil: Grå sirkler med fargekant for sykdom
+            const hasPD = diseases.includes('PANKREASSYKDOM')
+            const hasILA = diseases.includes('INFEKSIOES_LAKSEANEMI')
+            const hasBKD = diseases.includes('BAKTERIELL_NYRESYKE')
+            const hasFrancisellose = diseases.includes('FRANCISELLOSE')
+            const hasDisease = diseases.length > 0
 
-            if (status === 'DANGER' || lice >= 0.10) {
-              fillColor = '#f44336'
-              borderColor = '#c62828'
-            } else if (status === 'WARNING' || (lice >= 0.08 && lice < 0.10)) {
-              fillColor = '#ff9800'
-              borderColor = '#e65100'
-            } else if (status === 'OK' || (lice !== null && lice !== undefined && lice < 0.08)) {
-              fillColor = '#4CAF50'
-              borderColor = '#2e7d32'
+            // Standard grå farge (som BarentsWatch)
+            let fillColor = '#6B7280' // Grå
+            let borderColor = '#4B5563'
+
+            // Fargekant basert på sykdom (som BarentsWatch)
+            if (hasILA) {
+              fillColor = '#20B2AA'
+              borderColor = '#178a82'
+            } else if (hasPD) {
+              fillColor = '#7B68EE'
+              borderColor = '#5a4fcf'
+            } else if (hasBKD || hasFrancisellose) {
+              fillColor = '#FF6347'
+              borderColor = '#dc4a30'
             } else if (props?.isFallow) {
-              fillColor = '#9e9e9e'
-              borderColor = '#616161'
+              fillColor = '#9CA3AF'
+              borderColor = '#6B7280'
             }
 
             const liceText = lice !== null && lice !== undefined
               ? lice.toFixed(2)
               : 'Ikke rapportert'
 
+            // Format disease names for display
+            const diseaseNames = {
+              'PANKREASSYKDOM': 'Pankreassykdom (PD)',
+              'INFEKSIOES_LAKSEANEMI': 'Infeksiøs lakseanemi (ILA)',
+              'BAKTERIELL_NYRESYKE': 'Bakteriell nyresyke (BKD)',
+              'FRANCISELLOSE': 'Francisellose'
+            }
+
             return (
               <CircleMarker
                 key={`point-${props?.loknr || idx}`}
                 center={[lat, lng]}
-                radius={8}
+                radius={hasDisease ? 10 : 8}
                 pathOptions={{
                   fillColor: fillColor,
                   fillOpacity: 0.7,
                   color: borderColor,
-                  weight: 2
+                  weight: hasDisease ? 3 : 2
                 }}
               >
                 <Popup>
@@ -1024,6 +1235,17 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
                       <p><strong>Status:</strong> {props?.status || 'UKJENT'}</p>
                       {props?.isFallow && <p style={{ color: '#444' }}><em>Brakklagt</em></p>}
                       {props?.hasReported === false && <p style={{ color: '#f44336' }}><em>Ikke rapportert denne uken</em></p>}
+                      {hasDisease && (
+                        <>
+                          <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid #ddd' }} />
+                          <p style={{ fontWeight: 'bold', color: '#d32f2f' }}>Sykdomsstatus:</p>
+                          {diseases.map((d, i) => (
+                            <p key={i} style={{ margin: '2px 0', color: hasILA ? '#20B2AA' : hasPD ? '#7B68EE' : '#FF6347' }}>
+                              • {diseaseNames[d] || d}
+                            </p>
+                          ))}
+                        </>
+                      )}
                     </div>
                   </div>
                 </Popup>

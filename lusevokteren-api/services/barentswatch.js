@@ -106,6 +106,8 @@ async function getLocalitiesWithLiceData(year, week) {
       hasReported: loc.liceReport?.hasReported,
       isFallow: loc.liceReport?.isFallow,
       hasSalmonoidLicense: loc.hasSalmonoidLicense,
+      isOnLand: loc.locality?.isOnLand,
+      diseases: loc.diseases || [],  // Sykdomsstatus (ILA, PD, BKD, etc.)
       status: getStatus(loc.liceReport?.adultFemaleLice?.average),
     }));
   } catch (error) {
@@ -249,10 +251,20 @@ function getMockLocalitiesData() {
   ];
 
   let localityNo = 10000;
-  allRegions.forEach(loc => {
+  allRegions.forEach((loc, index) => {
     // Simulate some localities being fallow (brakklagt)
     const isFallow = Math.random() < 0.15; // 15% av lokalitetene er brakklagt
     const hasReported = !isFallow && Math.random() > 0.05; // Aktive rapporterer vanligvis
+
+    // Simuler sykdomsstatus - noen lokaliteter har PD eller ILA
+    let diseases = [];
+    if (!isFallow) {
+      // Ca 10% har PD, 5% har ILA, 1% har begge eller andre
+      const rand = Math.random();
+      if (rand < 0.10) diseases.push('PANKREASSYKDOM');
+      if (rand < 0.05) diseases.push('INFEKSIOES_LAKSEANEMI');
+      if (rand < 0.01) diseases.push('BAKTERIELL_NYRESYKE');
+    }
 
     localities.push({
       localityNo: localityNo++,
@@ -267,6 +279,7 @@ function getMockLocalitiesData() {
       hasReported: hasReported,
       isFallow: isFallow,
       hasSalmonoidLicense: true, // Alle mock-data er sjøbaserte laks/ørret anlegg
+      diseases: diseases, // Sykdomsstatus
       status: isFallow ? 'UNKNOWN' : (loc.lice >= 0.10 ? 'DANGER' : loc.lice >= 0.08 ? 'WARNING' : 'OK'),
       owner: `${loc.name} Oppdrett AS`,
     });
@@ -317,29 +330,24 @@ function getWeekNumber(date) {
 }
 
 /**
- * Hent faktiske polygon-geometrier for lokaliteter fra Geonorge WFS (åpent API)
- * Dette er et offentlig tilgjengelig WFS-endepunkt som ikke krever autentisering
+ * Hent faktiske polygon-geometrier for lokaliteter fra Fiskeridirektoratet
+ * Bruker fiskeridirWMS_akva MapServer layer 23 (nytek_plassering_ytterpunkt)
+ * Dette er offisielle konsesjonsområder/anleggsgrenser
  */
 async function getLocalityPolygons() {
   try {
-    // Hent polygon-geometrier via ArcGIS REST API
-    // WFS-grensesnittet har problemer, så vi bruker REST API i stedet
-    console.log('Fetching locality polygons from Fiskeridirektoratet (REST API)...');
+    console.log('Fetching locality polygons from Fiskeridirektoratet WMS_akva...');
 
-    const baseUrl = 'https://gis.fiskeridir.no/server/rest/services/FiskeridirWFS_akva/MapServer/80/query';
-    const pageSize = 1000; // REST API støtter større batches
+    // Layer 23: nytek_plassering_ytterpunkt - offisielle anleggsgrenser
+    const baseUrl = 'https://gis.fiskeridir.no/server/rest/services/fiskeridirWMS_akva/MapServer/23/query';
+    const pageSize = 1000;
     let allFeatures = [];
-    let filteredCount = {
-      landFreshwater: 0,
-      keptFeatures: 0,
-      total: 0
-    };
     let resultOffset = 0;
     let hasMore = true;
 
     while (hasMore) {
-      // REST API query: hent alle features med paginering
-      const queryUrl = `${baseUrl}?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultOffset=${resultOffset}&resultRecordCount=${pageSize}`;
+      // REST API query: hent alle features med paginering, konverter til WGS84 (lat/lng)
+      const queryUrl = `${baseUrl}?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultOffset=${resultOffset}&resultRecordCount=${pageSize}&outSR=4326`;
 
       const response = await fetch(queryUrl, {
         method: 'GET',
@@ -356,37 +364,17 @@ async function getLocalityPolygons() {
       const geoJsonData = await response.json();
 
       if (geoJsonData && geoJsonData.features && geoJsonData.features.length > 0) {
-        filteredCount.total += geoJsonData.features.length;
-
-        // Filter basert på:
-        // 1) Gyldig geometri
-        // 2) Kun sjøanlegg (SJØ + SALTVANN) og landbaserte saltvannsanlegg (LAND + SALTVANN)
-        // 3) EKSKLUDER landbaserte ferskvannsanlegg (LAND + FERSKVANN) - ingen lus i ferskvann
+        // Filter kun gyldige features med geometri og status KLARERT
         const validFeatures = geoJsonData.features.filter(f => {
-          // Must have valid geometry
           if (!f.geometry || !f.geometry.coordinates || f.geometry.coordinates.length === 0) {
             return false;
           }
-
-          const plassering = f.properties?.plassering || '';
-          const vannmiljo = f.properties?.vannmiljo || '';
-
-          // FILTRER UT: Landbaserte ferskvannsanlegg (settefisk, matfisk i ferskvann, etc.)
-          // Lus lever kun i saltvann, så ferskvannsanlegg har ingen luserelevans
-          if (plassering === 'LAND' && vannmiljo === 'FERSKVANN') {
-            filteredCount.landFreshwater++;
-            return false;
-          }
-
-          // BEHOLD alt annet:
-          // - SJØ + SALTVANN (normale sjøanlegg for matfisk)
-          // - LAND + SALTVANN (landbaserte RAS-anlegg med sjøvann)
-          filteredCount.keptFeatures++;
-          return true;
+          // Kun klarerte lokaliteter
+          return f.properties?.status_lokalitet === 'KLARERT';
         });
 
         allFeatures = allFeatures.concat(validFeatures);
-        console.log(`  Batch ${Math.floor(resultOffset / pageSize) + 1}: ${validFeatures.length}/${geoJsonData.features.length} kept (total: ${filteredCount.landFreshwater} land+freshwater filtered)`);
+        console.log(`  Batch ${Math.floor(resultOffset / pageSize) + 1}: ${validFeatures.length}/${geoJsonData.features.length} features`);
 
         // Check if there are more features
         if (geoJsonData.features.length < pageSize) {
@@ -399,11 +387,7 @@ async function getLocalityPolygons() {
       }
     }
 
-    console.log(`\n📊 FILTERING SUMMARY:`);
-    console.log(`   Total polygons from REST API: ${filteredCount.total}`);
-    console.log(`   ✅ Kept (lice-relevant): ${filteredCount.keptFeatures}`);
-    console.log(`   ❌ Filtered out (LAND + FERSKVANN): ${filteredCount.landFreshwater}`);
-    console.log(`   → ${allFeatures.length} real polygons will be displayed on map\n`);
+    console.log(`✅ Fetched ${allFeatures.length} real polygon boundaries from Fiskeridirektoratet\n`);
 
     if (allFeatures.length > 0) {
       return {
@@ -414,7 +398,7 @@ async function getLocalityPolygons() {
 
     return null;
   } catch (error) {
-    console.error('Error fetching locality polygons from REST API:', error);
+    console.error('Error fetching locality polygons:', error);
     return null;
   }
 }

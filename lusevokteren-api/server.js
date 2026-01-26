@@ -480,20 +480,11 @@ app.get('/api/locality-boundaries', async (req, res) => {
         anleggstype = 'VENTEMERD';
       }
 
-      // Bruk enten Point-geometri direkte fra BarentsWatch, eller generer polygon
-      let geometry;
-      if (geometryType === 'point') {
-        geometry = {
-          type: 'Point',
-          coordinates: [loc.longitude, loc.latitude]
-        };
-      } else {
-        // Generer polygon-boks for bakoverkompatibilitet
-        geometry = {
-          type: 'Polygon',
-          coordinates: [generatePolygonFromPoint(loc.latitude, loc.longitude, 1200, loc.localityNo)]
-        };
-      }
+      // Bruk Point-geometri fra BarentsWatch (polygoner hentes separat)
+      const geometry = {
+        type: 'Point',
+        coordinates: [loc.longitude, loc.latitude]
+      };
 
       return {
         type: 'Feature',
@@ -510,6 +501,7 @@ app.get('/api/locality-boundaries', async (req, res) => {
           plassering: 'SJØ',
           vannmiljo: 'SALTVANN',
           tillatelsestype: ownerData.tillatelsestype || '',
+          diseases: loc.diseases || [],  // Sykdomsstatus (ILA, PD, etc.)
         },
         geometry: geometry,
       };
@@ -575,6 +567,34 @@ app.get('/api/locality-boundaries', async (req, res) => {
   } catch (error) {
     console.error('Error fetching locality boundaries:', error);
     res.status(500).json({ error: 'Failed to fetch locality boundaries', details: error.message });
+  }
+});
+
+// Get real polygon boundaries from Fiskeridirektoratet
+app.get('/api/locality-polygons', async (req, res) => {
+  try {
+    const { getLocalityPolygons } = require('./services/barentswatch');
+
+    console.log('Fetching real polygon boundaries from Fiskeridirektoratet...');
+    const polygonData = await getLocalityPolygons();
+
+    if (!polygonData || !polygonData.features) {
+      return res.json({
+        type: 'FeatureCollection',
+        features: [],
+        source: 'Fiskeridirektoratet',
+        message: 'No polygon data available'
+      });
+    }
+
+    console.log(`✅ Returning ${polygonData.features.length} real polygon boundaries`);
+    res.json({
+      ...polygonData,
+      source: 'Fiskeridirektoratet'
+    });
+  } catch (error) {
+    console.error('Error fetching locality polygons:', error);
+    res.status(500).json({ error: 'Failed to fetch locality polygons', details: error.message });
   }
 });
 
