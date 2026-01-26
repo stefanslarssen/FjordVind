@@ -372,10 +372,7 @@ const MapSearch = ({ localities, onSelect, localityBoundaries }) => {
 const CollapsibleControls = ({
   showPolygons, setShowPolygons,
   showActualPolygons, setShowActualPolygons,
-  showSeaFarms, setShowSeaFarms,
-  showLandSaltwater, setShowLandSaltwater,
   filterStatus, setFilterStatus,
-  facilityTypeFilter, setFacilityTypeFilter,
   localityBoundaries,
   allLocalities,
   selectedCompany,
@@ -390,7 +387,6 @@ const CollapsibleControls = ({
     const plassering = (f.properties?.plassering || '').toUpperCase()
     const vannmiljo = (f.properties?.vannmiljo || '').toUpperCase()
     const lice = f.properties?.avgAdultFemaleLice
-    const anleggstype = (f.properties?.anleggstype || '').toUpperCase()
     const owner = (f.properties?.owner || '').toLowerCase()
 
     // Selskapsfilter
@@ -398,17 +394,9 @@ const CollapsibleControls = ({
       return false
     }
 
-    // Anleggstype filter
-    if (facilityTypeFilter !== 'all') {
-      if (anleggstype !== facilityTypeFilter.toUpperCase()) return false
-    }
-
-    // Type anlegg filter - sjøanlegg er default hvis ikke spesifisert
+    // Kun sjøanlegg (fokus på lus-relevant data)
     const isSeaFarm = plassering === 'SJØ' || (plassering === '' && vannmiljo !== 'FERSKVANN')
-    const isLandSaltwater = plassering === 'LAND' && vannmiljo === 'SALTVANN'
-
-    if (isSeaFarm && !showSeaFarms) return false
-    if (isLandSaltwater && !showLandSaltwater) return false
+    if (!isSeaFarm) return false
 
     // Lusestatus filter
     if (filterStatus !== 'all') {
@@ -508,35 +496,6 @@ const CollapsibleControls = ({
               Verneområder
             </span>
           </label>
-
-          {/* Anleggstype filter */}
-          <div style={{ marginBottom: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
-            <div style={{ fontWeight: 500, marginBottom: '6px' }}>Anleggstype</div>
-            <select
-              value={facilityTypeFilter}
-              onChange={(e) => setFacilityTypeFilter(e.target.value)}
-              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '12px', background: 'white', color: '#222' }}
-            >
-              <option value="all">Alle typer</option>
-              <option value="MATFISK">Matfisk (sjø)</option>
-              <option value="SETTEFISK">Settefisk</option>
-              <option value="VENTEMERD">Ventemerd/slaktemerd</option>
-              <option value="LANDANLEGG">Landbasert (RAS)</option>
-            </select>
-          </div>
-
-          {/* Type anlegg (plassering) */}
-          <div style={{ marginBottom: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
-            <div style={{ fontWeight: 500, marginBottom: '6px' }}>Plassering</div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={showSeaFarms} onChange={(e) => setShowSeaFarms(e.target.checked)} />
-              <span>Sjøanlegg</span>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={showLandSaltwater} onChange={(e) => setShowLandSaltwater(e.target.checked)} />
-              <span>Landbasert (saltvann)</span>
-            </label>
-          </div>
 
           {/* Lusestatus filter */}
           <div style={{ marginBottom: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
@@ -752,9 +711,6 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
   const [showPolygons, setShowPolygons] = useState(true)
   const [showActualPolygons, setShowActualPolygons] = useState(true) // Vis polygon-grenser som standard
   const [filterStatus, setFilterStatus] = useState('all')
-  const [facilityTypeFilter, setFacilityTypeFilter] = useState('all')
-  const [showSeaFarms, setShowSeaFarms] = useState(true)
-  const [showLandSaltwater, setShowLandSaltwater] = useState(true)
   const [searchSelected, setSearchSelected] = useState(null)
   const [diseaseZones, setDiseaseZones] = useState(null)
   const [protectedAreas, setProtectedAreas] = useState(null)
@@ -921,14 +877,8 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
         setShowPolygons={setShowPolygons}
         showActualPolygons={showActualPolygons}
         setShowActualPolygons={setShowActualPolygons}
-        showSeaFarms={showSeaFarms}
-        setShowSeaFarms={setShowSeaFarms}
-        showLandSaltwater={showLandSaltwater}
-        setShowLandSaltwater={setShowLandSaltwater}
         filterStatus={filterStatus}
         setFilterStatus={setFilterStatus}
-        facilityTypeFilter={facilityTypeFilter}
-        setFacilityTypeFilter={setFacilityTypeFilter}
         localityBoundaries={localityBoundaries}
         allLocalities={allLocalities}
         selectedCompany={selectedCompany}
@@ -1139,23 +1089,17 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
 
         {/* Lokaliteter fra BarentsWatch - Point geometri */}
         {showPolygons && localityBoundaries && (() => {
-          // Filtrer basert på selskap, anleggstype, lusestatus OG valgt lokalitet
+          // Filtrer basert på selskap og lusestatus - kun sjøanlegg
           const filteredFeatures = localityBoundaries.features.filter(feature => {
             const plassering = (feature.properties?.plassering || '').toUpperCase()
             const vannmiljo = (feature.properties?.vannmiljo || '').toUpperCase()
             const loknr = feature.properties?.loknr?.toString()
             const lice = feature.properties?.avgAdultFemaleLice
-            const anleggstype = (feature.properties?.anleggstype || '').toUpperCase()
             const owner = (feature.properties?.owner || '').toLowerCase()
 
             // Selskapsfilter - vis kun lokaliteter som tilhører valgt selskap
             if (selectedCompany && !owner.includes(selectedCompany.toLowerCase())) {
               return false
-            }
-
-            // Anleggstype filter
-            if (facilityTypeFilter !== 'all') {
-              if (anleggstype !== facilityTypeFilter.toUpperCase()) return false
             }
 
             // Hvis en lokalitet er valgt, vis kun den og naboer innen radius
@@ -1183,12 +1127,9 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
               }
             }
 
-            // Type anlegg filter
+            // Kun sjøanlegg (fokus på lus-relevant data)
             const isSeaFarm = plassering === 'SJØ' || (plassering === '' && vannmiljo !== 'FERSKVANN')
-            const isLandSaltwater = plassering === 'LAND' && vannmiljo === 'SALTVANN'
-
-            if (isSeaFarm && !showSeaFarms) return false
-            if (isLandSaltwater && !showLandSaltwater) return false
+            if (!isSeaFarm) return false
 
             // Lusestatus filter
             if (filterStatus !== 'all') {

@@ -446,16 +446,18 @@ app.get('/api/locality-boundaries', async (req, res) => {
     const week = getWeekNumber(now);
     const localities = await getLocalitiesWithLiceData(year, week);
 
-    // Get owner/company data from Fiskeridirektoratet WFS
+    // Get owner/company data from Fiskeridirektoratet WMS_akva layer 4
     const localitiesWithOwners = await fetchLocalitiesWithOwners();
     const ownerMap = new Map();
     localitiesWithOwners.forEach(f => {
       if (f.properties?.loknr) {
         ownerMap.set(f.properties.loknr, {
           owner: f.properties.innehaver || '',
-          facilityType: f.properties.anleggstype || f.properties.art_kode || '',
+          anleggstype: f.properties.anleggstype || 'MATFISK',
+          formaal_kode: f.properties.formaal_kode || '',
           kapasitet: f.properties.kapasitet || '',
-          tillatelsestype: f.properties.tillatelsestype || '',
+          plassering: f.properties.plassering || '',
+          vannmiljo: f.properties.vannmiljo || '',
         });
       }
     });
@@ -469,16 +471,8 @@ app.get('/api/locality-boundaries', async (req, res) => {
     const features = localities.map(loc => {
       const ownerData = ownerMap.get(loc.localityNo) || {};
 
-      // Bestem anleggstype basert på tilgjengelig data
-      let anleggstype = 'MATFISK'; // Default
-      const artKode = (ownerData.facilityType || '').toUpperCase();
-      const tillatelse = (ownerData.tillatelsestype || '').toUpperCase();
-
-      if (tillatelse.includes('SETTEFISK') || artKode.includes('SETTEFISK')) {
-        anleggstype = 'SETTEFISK';
-      } else if (tillatelse.includes('SLAKT') || artKode.includes('SLAKT') || tillatelse.includes('VENTE')) {
-        anleggstype = 'VENTEMERD';
-      }
+      // Bruk anleggstype fra Fiskeridirektoratet (basert på formaal_kode)
+      const anleggstype = ownerData.anleggstype || 'MATFISK';
 
       // Bruk Point-geometri fra BarentsWatch (polygoner hentes separat)
       const geometry = {

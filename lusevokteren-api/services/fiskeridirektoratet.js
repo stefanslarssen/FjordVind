@@ -1,11 +1,12 @@
 /**
  * Fiskeridirektoratet Aquaculture REST API
  * Fetches locality and owner information from REST API
- * Using layer 6 (Biomasse) as primary data source since layer 0 is currently empty
+ * Using layer 4 (akvakultur_innehaverinfo) from WMS_akva service
+ * This layer has formaal_kode (Matfisk, Settefisk, etc.) for facility type filtering
  */
 
-// REST API endpoint - layer 6 has current biomass/locality data
-const REST_BASE = 'https://gis.fiskeridir.no/server/rest/services/FiskeridirWFS_akva/MapServer/6/query';
+// REST API endpoint - layer 4 has locality info with formaal_kode (facility type)
+const REST_BASE = 'https://gis.fiskeridir.no/server/rest/services/fiskeridirWMS_akva/MapServer/4/query';
 
 // Cache for company data to avoid repeated fetches
 let companiesCache = null;
@@ -14,8 +15,8 @@ let cacheTimestamp = null;
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 /**
- * Fetch all locality point data from Fiskeridirektoratet REST API (Biomasse layer)
- * Layer 6 contains current locality data with biomass information
+ * Fetch all locality data from Fiskeridirektoratet REST API (akvakultur_innehaverinfo layer)
+ * Layer 4 contains locality data with formaal_kode for facility type filtering
  */
 async function fetchLocalitiesWithOwners() {
   // Return cached data if valid
@@ -25,7 +26,7 @@ async function fetchLocalitiesWithOwners() {
   }
 
   try {
-    console.log('Fetching all localities from Fiskeridirektoratet REST API (Biomasse layer)...');
+    console.log('Fetching all localities from Fiskeridirektoratet REST API (innehaverinfo layer)...');
 
     const pageSize = 1000;
     let allFeatures = [];
@@ -33,7 +34,8 @@ async function fetchLocalitiesWithOwners() {
     let hasMore = true;
 
     while (hasMore) {
-      const url = `${REST_BASE}?where=1=1&outFields=*&returnGeometry=true&f=geojson&resultOffset=${resultOffset}&resultRecordCount=${pageSize}`;
+      // Only fetch KLARERT (active) localities
+      const url = `${REST_BASE}?where=status_lokalitet%3D%27KLARERT%27+OR+status_lokalitet%3D%27AKTIV%27&outFields=loknr,navn,innehaver,formaal_kode,plassering,vannmiljo,kommune,fylke,kapasitet_lok,status_lokalitet,lat,lon&returnGeometry=false&f=json&resultOffset=${resultOffset}&resultRecordCount=${pageSize}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -44,25 +46,32 @@ async function fetchLocalitiesWithOwners() {
       const data = await response.json();
 
       if (data && data.features && data.features.length > 0) {
-        // Map Biomasse layer fields to our expected format
-        const mappedFeatures = data.features.map(f => ({
-          type: 'Feature',
-          geometry: f.geometry,
-          properties: {
-            loknr: f.properties.loknr,
-            lokalitetnavn: f.properties.navn,
-            navn: f.properties.navn,
-            innehaver: null, // Biomasse layer doesn't have owner info
-            anleggstype: getAnleggstypeFromPlassering(f.properties.plassering, f.properties.vannmiljo),
-            kapasitet: f.properties.kapasitet_lok,
-            plassering: f.properties.plassering,
-            vannmiljo: f.properties.vannmiljo,
-            kommune: f.properties.kommune,
-            fylke: f.properties.fylke,
-            status: f.properties.status_lokalitet,
-            har_fisk: f.properties.har_fisk,
-          }
-        }));
+        // Map layer 4 fields to our expected format
+        const mappedFeatures = data.features.map(f => {
+          const attrs = f.attributes;
+          return {
+            type: 'Feature',
+            geometry: attrs.lat && attrs.lon ? {
+              type: 'Point',
+              coordinates: [attrs.lon, attrs.lat]
+            } : null,
+            properties: {
+              loknr: attrs.loknr,
+              lokalitetnavn: attrs.navn,
+              navn: attrs.navn,
+              innehaver: attrs.innehaver,
+              // formaal_kode has values like "Matfisk", "Settefisk", "Stamdyr, Stamfisk", etc.
+              anleggstype: getAnleggstypeFromFormaal(attrs.formaal_kode, attrs.plassering, attrs.vannmiljo),
+              formaal_kode: attrs.formaal_kode,
+              kapasitet: attrs.kapasitet_lok,
+              plassering: attrs.plassering,
+              vannmiljo: attrs.vannmiljo,
+              kommune: attrs.kommune,
+              fylke: attrs.fylke,
+              status: attrs.status_lokalitet,
+            }
+          };
+        });
 
         allFeatures = allFeatures.concat(mappedFeatures);
         console.log(`  Batch ${Math.floor(resultOffset / pageSize) + 1}: ${data.features.length} features (total: ${allFeatures.length})`);
@@ -89,14 +98,36 @@ async function fetchLocalitiesWithOwners() {
 }
 
 /**
- * Determine facility type from placement and water environment
+ * Determine facility type from formaal_kode (purpose code)
+ * formaal_kode can contain multiple values like "Matfisk, Settefisk, Stamdyr"
  */
-function getAnleggstypeFromPlassering(plassering, vannmiljo) {
-  if (plassering === 'LAND' && vannmiljo === 'FERSKVANN') {
-    return 'SETTEFISK'; // Land-based freshwater = smolt/settefisk
-  } else if (plassering === 'SJØ' || (plassering === 'LAND' && vannmiljo === 'SALTVANN')) {
-    return 'MATFISK'; // Sea-based or saltwater = matfisk
+function getAnleggstypeFromFormaal(formaalKode, plassering, vannmiljo) {
+  const formaal = (formaalKode || '').toUpperCase();
+
+  // Check for specific facility types in the formaal_kode
+  if (formaal.includes('SETTEFISK')) {
+    return 'SETTEFISK';
   }
+  if (formaal.includes('SLAKT') || formaal.includes('VENTE')) {
+    return 'VENTEMERD';
+  }
+  if (formaal.includes('STAMFISK') || formaal.includes('STAMDYR')) {
+    return 'STAMFISK';
+  }
+
+  // If it's a land-based facility
+  if (plassering === 'LAND') {
+    if (vannmiljo === 'FERSKVANN') {
+      return 'SETTEFISK'; // Land-based freshwater typically settefisk
+    }
+    return 'LANDANLEGG'; // Land-based saltwater = RAS
+  }
+
+  // Default for sea-based facilities
+  if (formaal.includes('MATFISK') || formaal.includes('KONSUM')) {
+    return 'MATFISK';
+  }
+
   return 'MATFISK'; // Default
 }
 
