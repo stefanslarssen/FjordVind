@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const Joi = require('joi');
 const pool = require('../config/database');
-const { generateToken, requireAuth, DEMO_MODE } = require('../middleware/auth');
+const { generateToken, requireAuth, DEMO_MODE, setAuthCookie, clearAuthCookie, extractToken, verifyToken } = require('../middleware/auth');
 const {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -17,14 +17,26 @@ function generateSecureToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// ============================================================
+// PASSORDKRAV (SIKKERHET)
+// ============================================================
+// Minst 8 tegn, må inneholde:
+// - Minst én stor bokstav (A-Z)
+// - Minst én liten bokstav (a-z)
+// - Minst ett tall (0-9)
+// - Minst ett spesialtegn (!@#$%^&*(),.?":{}|<>)
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/;
+const PASSWORD_ERROR = 'Passord må være minst 8 tegn og inneholde minst én stor bokstav, én liten bokstav, ett tall og ett spesialtegn';
+
 // Validation schemas
 const registerSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Ugyldig e-postadresse',
     'any.required': 'E-post er påkrevd'
   }),
-  password: Joi.string().min(8).required().messages({
+  password: Joi.string().min(8).pattern(PASSWORD_REGEX).required().messages({
     'string.min': 'Passord må være minst 8 tegn',
+    'string.pattern.base': PASSWORD_ERROR,
     'any.required': 'Passord er påkrevd'
   }),
   full_name: Joi.string().min(2).max(100).required().messages({
@@ -50,8 +62,9 @@ const loginSchema = Joi.object({
 
 const changePasswordSchema = Joi.object({
   current_password: Joi.string().required(),
-  new_password: Joi.string().min(8).required().messages({
-    'string.min': 'Nytt passord må være minst 8 tegn'
+  new_password: Joi.string().min(8).pattern(PASSWORD_REGEX).required().messages({
+    'string.min': 'Nytt passord må være minst 8 tegn',
+    'string.pattern.base': PASSWORD_ERROR
   })
 });
 
@@ -67,8 +80,9 @@ const resetPasswordSchema = Joi.object({
     'string.length': 'Ugyldig token',
     'any.required': 'Token er påkrevd'
   }),
-  password: Joi.string().min(8).required().messages({
+  password: Joi.string().min(8).pattern(PASSWORD_REGEX).required().messages({
     'string.min': 'Passord må være minst 8 tegn',
+    'string.pattern.base': PASSWORD_ERROR,
     'any.required': 'Passord er påkrevd'
   })
 });
@@ -138,6 +152,9 @@ router.post('/register', async (req, res) => {
       full_name: user.full_name
     });
 
+    // Set httpOnly cookie
+    setAuthCookie(res, token);
+
     res.status(201).json({
       message: 'Bruker opprettet',
       user: {
@@ -147,7 +164,7 @@ router.post('/register', async (req, res) => {
         role: user.role,
         company_id: user.company_id
       },
-      token
+      token  // Still return token for backwards compatibility with API clients
     });
 
   } catch (error) {
@@ -199,25 +216,37 @@ router.post('/login', async (req, res) => {
 
     const { email, password } = value;
 
+    // Demo users for testing
+    const DEMO_LOGINS = {
+      'admin@fjordvind.no': { password: 'admin123', id: 'demo-1', full_name: 'Admin Bruker', role: 'admin' },
+      'leder@fjordvind.no': { password: 'leder123', id: 'demo-2', full_name: 'Ole Dansen', role: 'driftsleder' },
+      'rokter@fjordvind.no': { password: 'rokter123', id: 'demo-3', full_name: 'Kari Hansen', role: 'røkter' },
+      'demo@fjordvind.no': { password: 'demo1234', id: 'demo-user', full_name: 'Demo Bruker', role: 'driftsleder' }
+    };
+
     // Demo login - always available in demo mode
-    if (DEMO_MODE && email.toLowerCase() === 'demo@fjordvind.no' && password === 'demo1234') {
+    const demoUser = DEMO_LOGINS[email.toLowerCase()];
+    if (DEMO_MODE && demoUser && password === demoUser.password) {
       const token = generateToken({
-        id: 'demo-user',
-        email: 'demo@fjordvind.no',
-        role: 'driftsleder',
+        id: demoUser.id,
+        email: email.toLowerCase(),
+        role: demoUser.role,
         company_id: 'demo-company',
-        full_name: 'Demo Bruker'
+        full_name: demoUser.full_name
       });
+
+      // Set httpOnly cookie
+      setAuthCookie(res, token);
 
       return res.json({
         message: 'Innlogget (demo-modus)',
         user: {
-          id: 'demo-user',
-          email: 'demo@fjordvind.no',
-          full_name: 'Demo Bruker',
-          role: 'driftsleder'
+          id: demoUser.id,
+          email: email.toLowerCase(),
+          full_name: demoUser.full_name,
+          role: demoUser.role
         },
-        token,
+        token,  // Still return for backwards compatibility
         _demo: true
       });
     }
@@ -271,6 +300,9 @@ router.post('/login', async (req, res) => {
       full_name: user.full_name
     });
 
+    // Set httpOnly cookie
+    setAuthCookie(res, token);
+
     res.json({
       message: 'Innlogget',
       user: {
@@ -280,7 +312,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         company_id: user.company_id
       },
-      token
+      token  // Still return for backwards compatibility with API clients
     });
 
   } catch (error) {
@@ -424,18 +456,52 @@ router.post('/refresh', requireAuth, (req, res) => {
   // Generate new token with same user data
   const token = generateToken(req.user);
 
+  // Set new httpOnly cookie
+  setAuthCookie(res, token);
+
   res.json({
     message: 'Token fornyet',
-    token
+    token  // Still return for backwards compatibility
   });
 });
 
 /**
- * POST /api/auth/logout - Logout (client-side token removal)
+ * POST /api/auth/logout - Logout (clears httpOnly cookie and revokes token)
  */
-router.post('/logout', (req, res) => {
-  // JWT is stateless, so logout is handled client-side
-  // This endpoint exists for API completeness and potential future token blacklisting
+router.post('/logout', async (req, res) => {
+  try {
+    // Get the current token
+    const token = extractToken(req);
+
+    if (token && !token.startsWith('demo_token_')) {
+      // Verify and decode the token to get expiry
+      const decoded = verifyToken(token);
+
+      if (decoded) {
+        // Hash the token for storage (don't store raw tokens)
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Calculate expiry from token (or use default 7 days)
+        const expiresAt = decoded.exp
+          ? new Date(decoded.exp * 1000)
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        // Add to revoked tokens table
+        await pool.query(
+          `INSERT INTO revoked_tokens (token_hash, user_id, expires_at)
+           VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING`,
+          [tokenHash, decoded.sub, expiresAt]
+        );
+      }
+    }
+  } catch (error) {
+    // Log but don't fail - cookie clearing is the important part
+    console.warn('Token revocation warning:', error.message);
+  }
+
+  // Always clear the httpOnly cookie
+  clearAuthCookie(res);
   res.json({ message: 'Logget ut' });
 });
 

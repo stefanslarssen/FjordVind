@@ -85,7 +85,7 @@ describe('Auth Routes', () => {
         .post('/api/auth/register')
         .send({
           email: 'test@test.no',
-          password: 'validpassword123',
+          password: 'ValidPass123!',  // Meets complexity requirements
           full_name: 'Test User',
           org_number: '12345' // Should be 9 digits
         });
@@ -101,7 +101,7 @@ describe('Auth Routes', () => {
         .post('/api/auth/register')
         .send({
           email: uniqueEmail,
-          password: 'validpassword123',
+          password: 'ValidPass123!',  // Meets complexity: uppercase, lowercase, number, special char
           full_name: 'Valid User',
           company_name: 'Test Company',
           org_number: '123456789'

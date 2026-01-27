@@ -1,5 +1,11 @@
 version: '3.8'
 
+# ============================================================
+# SIKKERHET: Alle hemmeligheter må settes via miljøvariabler!
+# Kopier .env.example til .env og fyll inn verdier før start.
+# ALDRI commit .env filer til git!
+# ============================================================
+
 services:
   # PostgreSQL Database
   postgres:
@@ -7,16 +13,16 @@ services:
     container_name: lusevokteren-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: lusevokteren
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-lusevokteren}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD må settes i .env}
     ports:
-      - "5432:5432"
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./lusevokteren-backend/supabase/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,15 +33,20 @@ services:
     container_name: lusevokteren-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${API_PORT:-3000}:3000"
     env_file:
-      - ./lusevokteren-api/.env
+      - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: lusevokteren
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_NAME: ${POSTGRES_DB:-lusevokteren}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD må settes i .env}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET må settes i .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,23 +59,25 @@ services:
     container_name: lusevokteren-web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "${WEB_PORT:-80}:80"
     environment:
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
     depends_on:
       - api
 
-  # Adminer - Database Management UI (valgfritt)
+  # Adminer - Database Management UI (kun for utvikling!)
   adminer:
     image: adminer:latest
     container_name: lusevokteren-adminer
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${ADMINER_PORT:-8080}:8080"
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     depends_on:
       - postgres
+    profiles:
+      - dev  # Kun tilgjengelig med: docker-compose --profile dev up
 
 volumes:
   postgres_data:

@@ -3,10 +3,13 @@ node_modules/
 .pnp/
 .pnp.js
 
-# Environment files
+# Environment files (ALDRI commit hemmeligheter!)
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+# .env.example er OK å committe
 
 # Build output
 dist/

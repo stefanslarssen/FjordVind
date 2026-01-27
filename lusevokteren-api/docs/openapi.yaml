@@ -5,19 +5,36 @@ info:
     REST API for sea lice monitoring in Norwegian aquaculture.
 
     ## Authentication
-    Most endpoints require authentication via JWT Bearer token.
+    Most endpoints require authentication via JWT Bearer token or httpOnly cookie.
 
+    **Header authentication:**
     ```
     Authorization: Bearer <your-token>
     ```
 
-    ## Demo Mode
-    In development, demo tokens are available:
-    - `demo_token_admin` - Admin access
-    - `demo_token_driftsleder` - Operations manager
-    - `demo_token_røkter` - Fish farmer
+    **Cookie authentication:**
+    Tokens are automatically set as httpOnly cookies on login for browser clients.
 
-  version: 1.1.0
+    ## Password Requirements
+    Passwords must meet the following complexity requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter (A-Z)
+    - At least one lowercase letter (a-z)
+    - At least one number (0-9)
+    - At least one special character (!@#$%^&*(),.?":{}|<>)
+
+    ## Token Revocation
+    Tokens are revoked on logout. Revoked tokens will receive a 401 response.
+
+    ## Demo Mode
+    In development (with DEMO_MODE=true), demo tokens are available:
+    - `demo_token_admin` - Admin access
+    - `demo_token_leder` - Operations manager (driftsleder)
+    - `demo_token_rokter` - Fish farmer (røkter)
+
+    **Note:** Demo mode is disabled in production.
+
+  version: 1.2.0
   contact:
     name: FjordVind Support
     email: support@fjordvind.no
@@ -551,7 +568,13 @@ components:
         password:
           type: string
           minLength: 8
-          example: securepassword123
+          description: |
+            Must contain at least 8 characters including:
+            - One uppercase letter (A-Z)
+            - One lowercase letter (a-z)
+            - One number (0-9)
+            - One special character (!@#$%^&*(),.?":{}|<>)
+          example: SecurePass123!
         full_name:
           type: string
           example: Ola Nordmann
@@ -561,6 +584,7 @@ components:
         org_number:
           type: string
           pattern: '^\d{9}$'
+          description: Norwegian organization number (9 digits)
           example: '123456789'
 
     LoginRequest:
