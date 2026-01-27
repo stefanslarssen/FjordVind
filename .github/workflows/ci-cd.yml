@@ -1,0 +1,265 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository }}/api
+  WEB_IMAGE: ghcr.io/${{ github.repository }}/web
+
+jobs:
+  # =============================================
+  # LINT AND TYPE CHECK
+  # =============================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            lusevokteren-api/package-lock.json
+            lusevokteren-web/package-lock.json
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: lusevokteren-api
+
+      - name: Install Web dependencies
+        run: npm ci
+        working-directory: lusevokteren-web
+
+      - name: Lint API
+        run: npm run lint --if-present
+        working-directory: lusevokteren-api
+        continue-on-error: true
+
+      - name: Lint Web
+        run: npm run lint --if-present
+        working-directory: lusevokteren-web
+        continue-on-error: true
+
+  # =============================================
+  # API TESTS
+  # =============================================
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DEMO_MODE: true
+      JWT_SECRET: test-secret-for-ci-only-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: lusevokteren-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: lusevokteren-api
+
+      - name: Run tests
+        run: npm test
+        working-directory: lusevokteren-api
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageReporters=text --coverageReporters=lcov
+        working-directory: lusevokteren-api
+        continue-on-error: true
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: lusevokteren-api/coverage/lcov.info
+          flags: api
+          fail_ci_if_error: false
+
+  # =============================================
+  # WEB TESTS
+  # =============================================
+  test-web:
+    name: Web Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: lusevokteren-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: lusevokteren-web
+
+      - name: Run tests
+        run: npm test -- --run
+        working-directory: lusevokteren-web
+
+      - name: Run tests with coverage
+        run: npm run test:coverage -- --run
+        working-directory: lusevokteren-web
+        continue-on-error: true
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: lusevokteren-web/coverage/lcov.info
+          flags: web
+          fail_ci_if_error: false
+
+  # =============================================
+  # BUILD
+  # =============================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: lusevokteren-web/package-lock.json
+
+      - name: Install Web dependencies
+        run: npm ci
+        working-directory: lusevokteren-web
+
+      - name: Build Web
+        run: npm run build
+        working-directory: lusevokteren-web
+        env:
+          VITE_API_URL: /api
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: lusevokteren-web/dist
+          retention-days: 7
+
+  # =============================================
+  # BUILD AND PUSH DOCKER IMAGES
+  # =============================================
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: lusevokteren-web/dist
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./lusevokteren-api
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./lusevokteren-web
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================
+  # SECURITY SCAN
+  # =============================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (API)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'lusevokteren-api'
+          format: 'sarif'
+          output: 'trivy-api-results.sarif'
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner (Web)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'lusevokteren-web'
+          format: 'sarif'
+          output: 'trivy-web-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-api-results.sarif'
+        continue-on-error: true
