@@ -9,6 +9,10 @@
     "start:prod": "NODE_ENV=production node server.js",
     "lint": "eslint .",
     "test": "jest",
+    "test:load:smoke": "npx artillery run tests/load/smoke.yml",
+    "test:load": "npx artillery run tests/load/artillery.yml",
+    "test:load:stress": "npx artillery run tests/load/stress.yml",
+    "test:load:quick": "npx artillery quick --count 100 --num 10 http://localhost:3000/api/dashboard/overview",
     "generate-secret": "node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\""
   },
   "dependencies": {

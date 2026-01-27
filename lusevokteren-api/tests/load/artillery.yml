@@ -1,0 +1,104 @@
+# Artillery Load Test Configuration for Lusevokteren API
+# Run with: npx artillery run tests/load/artillery.yml
+
+config:
+  target: "http://localhost:3000"
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    # Ramp up load
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up"
+    # Sustained load
+    - duration: 120
+      arrivalRate: 50
+      name: "Sustained load"
+    # Spike test
+    - duration: 30
+      arrivalRate: 100
+      name: "Spike"
+    # Cool down
+    - duration: 30
+      arrivalRate: 10
+      name: "Cool down"
+
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+
+  # Custom metrics thresholds
+  ensure:
+    p95: 500      # 95th percentile response time < 500ms
+    p99: 1000     # 99th percentile response time < 1000ms
+    maxErrorRate: 1  # Max 1% error rate
+
+scenarios:
+  # Health check endpoints (lightweight)
+  - name: "Health Checks"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+      - get:
+          url: "/monitoring/health/live"
+      - get:
+          url: "/monitoring/health/ready"
+
+  # Dashboard overview (most common endpoint)
+  - name: "Dashboard Overview"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/dashboard/overview"
+
+  # Statistics endpoints
+  - name: "Statistics"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/stats/weekly-overview"
+      - get:
+          url: "/api/stats/regional"
+      - get:
+          url: "/api/stats/lice-trend?days=14"
+
+  # Predictions
+  - name: "Predictions"
+    weight: 15
+    flow:
+      - get:
+          url: "/api/predictions?page=1&limit=10"
+      - get:
+          url: "/api/predictions/summary"
+      - get:
+          url: "/api/predictions/risk-scores"
+
+  # Location browsing
+  - name: "Locations"
+    weight: 15
+    flow:
+      - get:
+          url: "/api/locations"
+      - get:
+          url: "/api/locations?search=Nord"
+
+  # Authenticated flow simulation
+  - name: "Authenticated User Session"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/dashboard/overview"
+      - think: 2
+      - get:
+          url: "/api/stats/weekly-overview"
+      - think: 3
+      - get:
+          url: "/api/predictions?page=1&limit=20"
+      - think: 2
+      - get:
+          url: "/api/dashboard/charts/TestLokalitet"

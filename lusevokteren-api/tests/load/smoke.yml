@@ -1,0 +1,93 @@
+# Artillery Smoke Test for Lusevokteren API
+# Quick validation that all endpoints are working
+# Run with: npx artillery run tests/load/smoke.yml
+
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 10
+      arrivalRate: 1
+      name: "Smoke test"
+
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Smoke Test - All Critical Endpoints"
+    flow:
+      # Health endpoints
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/monitoring/health"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/monitoring/health/live"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/monitoring/health/ready"
+          expect:
+            - statusCode:
+                - 200
+                - 503  # May fail if DB not connected
+      - get:
+          url: "/monitoring/health/detailed"
+          expect:
+            - statusCode: 200
+
+      # Metrics
+      - get:
+          url: "/monitoring/metrics"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/monitoring/status"
+          expect:
+            - statusCode: 200
+
+      # Dashboard
+      - get:
+          url: "/api/dashboard/overview"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/dashboard/monthly-stats"
+          expect:
+            - statusCode: 200
+
+      # Statistics
+      - get:
+          url: "/api/stats/weekly-overview"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/stats/regional"
+          expect:
+            - statusCode: 200
+
+      # Predictions
+      - get:
+          url: "/api/predictions"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/predictions/summary"
+          expect:
+            - statusCode: 200
+
+      # Locations
+      - get:
+          url: "/api/locations"
+          expect:
+            - statusCode: 200
+
+      # Cache stats
+      - get:
+          url: "/api/cache/stats"
+          expect:
+            - statusCode: 200

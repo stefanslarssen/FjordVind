@@ -1,0 +1,68 @@
+# Artillery Stress Test for Lusevokteren API
+# Tests system limits and breaking points
+# Run with: npx artillery run tests/load/stress.yml
+
+config:
+  target: "http://localhost:3000"
+  phases:
+    # Start low
+    - duration: 30
+      arrivalRate: 10
+      name: "Baseline"
+    # Gradual increase
+    - duration: 60
+      arrivalRate: 10
+      rampTo: 100
+      name: "Ramp up to 100 RPS"
+    # High load
+    - duration: 60
+      arrivalRate: 100
+      name: "High load - 100 RPS"
+    # Push limits
+    - duration: 60
+      arrivalRate: 100
+      rampTo: 200
+      name: "Ramp to 200 RPS"
+    # Peak stress
+    - duration: 30
+      arrivalRate: 200
+      name: "Peak stress - 200 RPS"
+    # Recovery
+    - duration: 60
+      arrivalRate: 200
+      rampTo: 20
+      name: "Recovery ramp down"
+
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+  # Capture response times for analysis
+  plugins:
+    expect: {}
+
+scenarios:
+  # Mix of read-heavy operations
+  - name: "Read-heavy Mix"
+    weight: 70
+    flow:
+      - get:
+          url: "/api/dashboard/overview"
+      - get:
+          url: "/api/stats/weekly-overview"
+
+  - name: "Predictions Load"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/predictions?page=1&limit=50"
+      - get:
+          url: "/api/predictions/risk-scores"
+
+  - name: "Health Checks"
+    weight: 10
+    flow:
+      - get:
+          url: "/monitoring/health"
+      - get:
+          url: "/monitoring/metrics"
