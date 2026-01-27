@@ -130,7 +130,7 @@ describe('Auth Middleware', () => {
   });
 
   describe('requireAuth middleware', () => {
-    it('should return 401 when no auth header', () => {
+    it('should return 401 when no auth header', async () => {
       const req = { headers: {} };
       const res = {
         status: jest.fn().mockReturnThis(),
@@ -138,7 +138,7 @@ describe('Auth Middleware', () => {
       };
       const next = jest.fn();
 
-      requireAuth(req, res, next);
+      await requireAuth(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(
@@ -147,7 +147,7 @@ describe('Auth Middleware', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should return 401 for invalid token', () => {
+    it('should return 401 for invalid token', async () => {
       const req = {
         headers: { authorization: 'Bearer invalid-token' }
       };
@@ -157,7 +157,7 @@ describe('Auth Middleware', () => {
       };
       const next = jest.fn();
 
-      requireAuth(req, res, next);
+      await requireAuth(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(
@@ -166,7 +166,7 @@ describe('Auth Middleware', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should call next() for valid token', () => {
+    it('should call next() for valid token', async () => {
       const token = generateToken(testUser);
       const req = {
         headers: { authorization: `Bearer ${token}` }
@@ -174,7 +174,7 @@ describe('Auth Middleware', () => {
       const res = {};
       const next = jest.fn();
 
-      requireAuth(req, res, next);
+      await requireAuth(req, res, next);
 
       expect(req.user).toBeDefined();
       expect(req.user.id).toBe(testUser.id);
