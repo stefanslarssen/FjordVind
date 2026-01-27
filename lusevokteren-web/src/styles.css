@@ -305,11 +305,220 @@ a:hover { text-decoration: underline; }
   background: rgba(30, 64, 175, 0.08);
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    display: none;
+/* ============================================
+   RESPONSIVE CLASSES
+   ============================================ */
+
+/* Hamburger Button */
+.hamburger-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.hamburger-line {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.hamburger-line.open:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-line.open:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-line.open:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+/* Responsive Grid Classes */
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.responsive-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.modal-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Dashboard Content Container */
+.dashboard-content {
+  padding: 24px;
+  display: flex;
+  gap: 24px;
+}
+
+/* Summary Bar */
+.summary-bar {
+  background: #2d4f57;
+  color: white;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+/* Header Row */
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Status Sidebar */
+.status-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+/* Modal Content */
+.modal-content {
+  padding: 32px;
+}
+
+/* ============================================
+   TABLET BREAKPOINT (768px - 1024px)
+   ============================================ */
+@media (max-width: 1024px) {
+  .responsive-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
   }
+
+  .modal-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .status-sidebar {
+    width: 240px;
+  }
+}
+
+/* ============================================
+   MOBILE BREAKPOINT (< 768px)
+   ============================================ */
+@media (max-width: 768px) {
+  /* Show hamburger button */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Show mobile overlay when menu is open */
+  .mobile-overlay {
+    display: block;
+  }
+
+  /* Sidebar transforms off-screen by default */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  /* Sidebar slides in when open */
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Main content fills full width */
   .main {
     margin-left: 0;
+  }
+
+  /* Dashboard content stacks vertically */
+  .dashboard-content {
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  /* All grids become single column */
+  .responsive-grid-2,
+  .responsive-grid-3,
+  .responsive-grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Status sidebar full width on mobile */
+  .status-sidebar {
+    width: 100%;
+    order: -1; /* Move to top on mobile */
+  }
+
+  /* Summary bar stacks vertically */
+  .summary-bar {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+    padding: 20px 16px;
+  }
+
+  /* Header row wraps on mobile */
+  .header-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Modal reduced padding on mobile */
+  .modal-content {
+    padding: 16px;
+  }
+
+  /* Reduce main padding on mobile */
+  .main {
+    padding: 16px;
+  }
+}
+
+/* Global animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }

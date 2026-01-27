@@ -1,27 +1,58 @@
-import { Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { useAuth } from './contexts/AuthContext'
 import { useLanguage } from './contexts/LanguageContext'
+import { MobileMenuProvider, useMobileMenu } from './contexts/MobileMenuContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import OfflineIndicator from './components/OfflineIndicator'
-import OversiktPage from './pages/OversiktPage'
-import HistoryPage from './pages/HistoryPage'
-import LocationsPage from './pages/LocationsPage'
-import MapPage from './pages/MapPage'
-import PredictionsPage from './pages/PredictionsPage'
-import AlertsPage from './pages/AlertsPage'
-import TreatmentsPage from './pages/TreatmentsPage'
-import EnvironmentPage from './pages/EnvironmentPage'
-import ForingPage from './pages/ForingPage'
-import RapporterPage from './pages/RapporterPage'
-import InnstillingerPage from './pages/InnstillingerPage'
-import NyTellingPage from './pages/NyTellingPage'
-import NaboSammenligningPage from './pages/NaboSammenligningPage'
-import MyFarmsPage from './pages/MyFarmsPage'
-import LoginPage from './pages/LoginPage'
-import SignupPage from './pages/SignupPage'
-import ForgotPasswordPage from './pages/ForgotPasswordPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
+import HamburgerButton from './components/HamburgerButton'
+import MobileOverlay from './components/MobileOverlay'
+
+// Lazy-loadede sider for mindre bundle-størrelse
+const OversiktPage = lazy(() => import('./pages/OversiktPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const LocationsPage = lazy(() => import('./pages/LocationsPage'))
+const MapPage = lazy(() => import('./pages/MapPage'))
+const PredictionsPage = lazy(() => import('./pages/PredictionsPage'))
+const AlertsPage = lazy(() => import('./pages/AlertsPage'))
+const TreatmentsPage = lazy(() => import('./pages/TreatmentsPage'))
+const EnvironmentPage = lazy(() => import('./pages/EnvironmentPage'))
+const ForingPage = lazy(() => import('./pages/ForingPage'))
+const RapporterPage = lazy(() => import('./pages/RapporterPage'))
+const InnstillingerPage = lazy(() => import('./pages/InnstillingerPage'))
+const NyTellingPage = lazy(() => import('./pages/NyTellingPage'))
+const NaboSammenligningPage = lazy(() => import('./pages/NaboSammenligningPage'))
+const MyFarmsPage = lazy(() => import('./pages/MyFarmsPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const SignupPage = lazy(() => import('./pages/SignupPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+
+// Fallback-komponent mens sider laster
+function PageLoader() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '200px',
+      color: 'var(--text-secondary)'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid var(--border)',
+          borderTopColor: 'var(--primary)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          margin: '0 auto 12px'
+        }} />
+        <span>Laster...</span>
+      </div>
+    </div>
+  )
+}
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -30,6 +61,13 @@ function AppLayout() {
   const { user, signOut, isAuthenticated, isDemoMode } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { isMenuOpen, closeMenu } = useMobileMenu()
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    closeMenu()
+  }, [location.pathname, closeMenu])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -65,7 +103,8 @@ function AppLayout() {
 
   return (
     <div className="layout">
-      <aside className="sidebar">
+      <MobileOverlay />
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         {/* FjordVind Icon */}
         <svg viewBox="0 0 100 100" className="brand-icon">
           <path d="M15 65 L32 35 L50 50 L70 22" stroke="#1e40af" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
@@ -237,22 +276,27 @@ function AppLayout() {
       </aside>
 
       <main className="main">
-        <Routes>
-          <Route path="/" element={<OversiktPage />} />
-          <Route path="/ny-telling" element={<NyTellingPage />} />
-          <Route path="/predictions" element={<PredictionsPage />} />
-          <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="/treatments" element={<TreatmentsPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/locations" element={<LocationsPage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/mine-anlegg" element={<MyFarmsPage />} />
-          <Route path="/nabo-sammenligning" element={<NaboSammenligningPage />} />
-          <Route path="/environment" element={<EnvironmentPage />} />
-          <Route path="/foring" element={<ForingPage />} />
-          <Route path="/rapporter" element={<RapporterPage />} />
-          <Route path="/innstillinger" element={<InnstillingerPage />} />
-        </Routes>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <HamburgerButton />
+        </div>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<OversiktPage />} />
+            <Route path="/ny-telling" element={<NyTellingPage />} />
+            <Route path="/predictions" element={<PredictionsPage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/treatments" element={<TreatmentsPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/locations" element={<LocationsPage />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/mine-anlegg" element={<MyFarmsPage />} />
+            <Route path="/nabo-sammenligning" element={<NaboSammenligningPage />} />
+            <Route path="/environment" element={<EnvironmentPage />} />
+            <Route path="/foring" element={<ForingPage />} />
+            <Route path="/rapporter" element={<RapporterPage />} />
+            <Route path="/innstillinger" element={<InnstillingerPage />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   )
@@ -301,23 +345,27 @@ export default function App() {
 
   return (
     <>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+          {/* Protected routes */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MobileMenuProvider>
+                  <AppLayout />
+                </MobileMenuProvider>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
       <OfflineIndicator />
     </>
   )
