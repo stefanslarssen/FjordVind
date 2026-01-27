@@ -11,6 +11,7 @@ const {
   sendPasswordResetEmail,
   sendPasswordChangedEmail
 } = require('../services/email');
+const bruteForce = require('../utils/bruteForce');
 
 // Helper: Generate secure random token
 function generateSecureToken() {
@@ -215,6 +216,20 @@ router.post('/login', async (req, res) => {
     }
 
     const { email, password } = value;
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+
+    // Check brute-force protection
+    const loginCheck = bruteForce.checkLoginAllowed(email, clientIp);
+    if (!loginCheck.isAllowed) {
+      const retryAfterSec = Math.ceil((loginCheck.lockoutEndsAt - Date.now()) / 1000);
+      res.set('Retry-After', retryAfterSec);
+      return res.status(429).json({
+        error: loginCheck.message,
+        code: 'TOO_MANY_ATTEMPTS',
+        retryAfter: retryAfterSec,
+        lockoutEndsAt: loginCheck.lockoutEndsAt
+      });
+    }
 
     // Demo users for testing
     const DEMO_LOGINS = {
@@ -260,10 +275,21 @@ router.post('/login', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({
+      // Record failed attempt
+      const attemptResult = bruteForce.recordFailedAttempt(email, clientIp);
+      const response = {
         error: 'Ugyldig e-post eller passord',
         code: 'INVALID_CREDENTIALS'
-      });
+      };
+      if (attemptResult.attemptsRemaining <= 2 && attemptResult.attemptsRemaining > 0) {
+        response.warning = `${attemptResult.attemptsRemaining} forsøk gjenstår før kontoen låses`;
+      }
+      if (attemptResult.isLocked) {
+        response.code = 'ACCOUNT_LOCKED';
+        response.error = 'Kontoen er midlertidig låst på grunn av for mange mislykkede forsøk';
+        response.lockoutEndsAt = attemptResult.lockoutEndsAt;
+      }
+      return res.status(401).json(response);
     }
 
     const user = result.rows[0];
@@ -279,11 +305,25 @@ router.post('/login', async (req, res) => {
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.status(401).json({
+      // Record failed attempt
+      const attemptResult = bruteForce.recordFailedAttempt(email, clientIp);
+      const response = {
         error: 'Ugyldig e-post eller passord',
         code: 'INVALID_CREDENTIALS'
-      });
+      };
+      if (attemptResult.attemptsRemaining <= 2 && attemptResult.attemptsRemaining > 0) {
+        response.warning = `${attemptResult.attemptsRemaining} forsøk gjenstår før kontoen låses`;
+      }
+      if (attemptResult.isLocked) {
+        response.code = 'ACCOUNT_LOCKED';
+        response.error = 'Kontoen er midlertidig låst på grunn av for mange mislykkede forsøk';
+        response.lockoutEndsAt = attemptResult.lockoutEndsAt;
+      }
+      return res.status(401).json(response);
     }
+
+    // Clear failed attempts on successful login
+    bruteForce.clearFailedAttempts(email);
 
     // Update last login
     await pool.query(
