@@ -190,4 +190,101 @@ describe('Cache Utility', () => {
       expect(cache.get('ttl-key')).toBeNull();
     });
   });
+
+  describe('cached', () => {
+    it('caches function result', async () => {
+      const expensiveFn = jest.fn().mockResolvedValue('computed');
+
+      const result1 = await cache.cached('computation', expensiveFn);
+      const result2 = await cache.cached('computation', expensiveFn);
+
+      expect(result1).toBe('computed');
+      expect(result2).toBe('computed');
+      expect(expensiveFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('cacheMiddleware', () => {
+    it('creates middleware function', () => {
+      const middleware = cache.cacheMiddleware(60000);
+      expect(typeof middleware).toBe('function');
+      expect(middleware.length).toBe(3);
+    });
+
+    it('skips non-GET requests', () => {
+      const middleware = cache.cacheMiddleware();
+      const req = { method: 'POST', originalUrl: '/api/test' };
+      const res = {};
+      const next = jest.fn();
+
+      middleware(req, res, next);
+      expect(next).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('Cache Async Methods', () => {
+  beforeEach(() => {
+    cache.clear();
+  });
+
+  describe('getAsync/setAsync', () => {
+    it('works with memory cache when Redis unavailable', async () => {
+      await cache.setAsync('async-key', { data: 'value' });
+      const result = await cache.getAsync('async-key');
+      expect(result).toEqual({ data: 'value' });
+    });
+
+    it('returns null for missing keys', async () => {
+      const result = await cache.getAsync('missing');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('delAsync', () => {
+    it('deletes keys asynchronously', async () => {
+      await cache.setAsync('del-key', 'value');
+      await cache.delAsync('del-key');
+      expect(await cache.getAsync('del-key')).toBeNull();
+    });
+  });
+
+  describe('clearAsync', () => {
+    it('clears cache asynchronously', async () => {
+      await cache.setAsync('key1', 'v1');
+      await cache.setAsync('key2', 'v2');
+
+      const cleared = await cache.clearAsync();
+      expect(cleared).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('getStatsAsync', () => {
+    it('returns stats asynchronously', async () => {
+      const stats = await cache.getStatsAsync();
+      expect(stats).toHaveProperty('type');
+      expect(stats).toHaveProperty('redisConnected');
+    });
+  });
+});
+
+describe('Redis Functions', () => {
+  describe('isRedisAvailable', () => {
+    it('returns false when Redis not configured', () => {
+      expect(cache.isRedisAvailable()).toBe(false);
+    });
+  });
+
+  describe('initRedis', () => {
+    it('returns false when REDIS_URL not set', async () => {
+      const result = await cache.initRedis();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('close', () => {
+    it('handles close gracefully when not connected', async () => {
+      await expect(cache.close()).resolves.not.toThrow();
+    });
+  });
 });
