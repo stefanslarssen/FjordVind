@@ -1,0 +1,17 @@
+<svg viewBox="0 0 2732 2732" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="2732" height="2732" fill="#0f172a"/>
+
+  <!-- FjordVind Logo - Centered -->
+  <g transform="translate(1016, 1066) scale(7)">
+    <!-- Mountain peaks -->
+    <path d="M15 65 L32 35 L50 50 L70 22" stroke="#1e40af" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Wave lines -->
+    <path d="M10 78 L45 78" stroke="#3b82f6" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M35 88 L85 88" stroke="#93c5fd" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- App name -->
+  <text x="1366" y="1700" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="140" font-weight="700" fill="#f8fafc">FjordVind</text>
+  <text x="1366" y="1800" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="50" fill="#94a3b8">Beskytter Norges kyst</text>
+</svg>
