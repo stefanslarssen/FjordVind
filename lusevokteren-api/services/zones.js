@@ -17,11 +17,16 @@ let protectedAreasCache = {
   fetchedAt: null
 };
 
+let localityPolygonsCache = {
+  data: null,
+  fetchedAt: null
+};
+
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 timer
 
 /**
- * Hent sykdomssoner (ILA/PD kontrollområder) fra BarentsWatch
- * Endepunkt: GET /bwapi/v2/geodata/fishhealth/controlAreas
+ * Hent sykdomssoner fra BarentsWatch
+ * Henter lokaliteter med aktive sykdommer (ILA, PD) og genererer 10km soner rundt dem
  */
 async function getDiseaseZones() {
   // Sjekk cache
@@ -44,65 +49,142 @@ async function getDiseaseZones() {
   try {
     console.log('Fetching disease zones from BarentsWatch API...');
 
-    const response = await fetch(
-      'https://www.barentswatch.no/bwapi/v2/geodata/fishhealth/controlAreas',
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      }
-    );
+    // Hent aktiv uke (siste tilgjengelige data)
+    const now = new Date();
+    const year = now.getFullYear();
+    // Beregn ukenummer
+    const startOfYear = new Date(year, 0, 1);
+    const pastDays = Math.floor((now - startOfYear) / 86400000);
+    const week = Math.max(1, Math.ceil((pastDays + startOfYear.getDay() + 1) / 7) - 1);
 
-    if (!response.ok) {
-      console.error(`BarentsWatch control areas request failed: ${response.status} ${response.statusText}`);
+    // Prøv siste uke, hvis ikke tilgjengelig prøv forrige uke
+    let data = null;
+    for (let w = week; w >= Math.max(1, week - 4); w--) {
+      const response = await fetch(
+        `https://www.barentswatch.no/bwapi/v2/geodata/fishhealth/locality/${year}/${w}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        }
+      );
+
+      if (response.ok) {
+        data = await response.json();
+        console.log(`Got data for week ${w}/${year} - ${data.length} localities`);
+        break;
+      }
+    }
+
+    if (!data) {
+      console.error('Could not fetch any locality data from BarentsWatch');
       return getMockDiseaseZones();
     }
 
-    const data = await response.json();
-    console.log(`Received ${Array.isArray(data) ? data.length : 'unknown'} control areas from BarentsWatch`);
-
-    // Transform til GeoJSON FeatureCollection
+    // Finn lokaliteter med sykdom og lag soner
     const features = [];
+    const processedLocations = new Set(); // Unngå duplikater
 
-    if (Array.isArray(data)) {
-      data.forEach(area => {
-        // BarentsWatch returnerer kontrollområder med geometri
-        if (area.geometry) {
+    data.forEach(loc => {
+      const diseases = loc.diseases || [];
+      if (diseases.length === 0) return;
+
+      const loknr = loc.locality?.no;
+      const lat = loc.locality?.latitude || loc.geometry?.coordinates?.[1];
+      const lon = loc.locality?.longitude || loc.geometry?.coordinates?.[0];
+
+      if (!lat || !lon || !loknr) return;
+
+      // Unngå duplikater
+      const locKey = `${loknr}`;
+      if (processedLocations.has(locKey)) return;
+      processedLocations.add(locKey);
+
+      diseases.forEach(disease => {
+        let diseaseType = 'OTHER';
+        let displayName = disease;
+
+        if (disease === 'INFEKSIOES_LAKSEANEMI' || disease.includes('LAKSEANEMI')) {
+          diseaseType = 'ILA';
+          displayName = 'Infeksiøs lakseanemi (ILA)';
+        } else if (disease === 'PANKREASSYKDOM') {
+          diseaseType = 'PD';
+          displayName = 'Pankreassykdom (PD)';
+        } else if (disease === 'BAKTERIELL_NYRESYKE') {
+          diseaseType = 'BKD';
+          displayName = 'Bakteriell nyresyke (BKD)';
+        } else if (disease === 'FRANCISELLOSE') {
+          diseaseType = 'FRANCISELLOSE';
+          displayName = 'Francisellose';
+        }
+
+        // Lag overvåkningssone (10km radius)
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [lon, lat]
+          },
+          properties: {
+            id: `${diseaseType}-${loknr}-surveillance`,
+            name: `${diseaseType}-sone ${loc.locality?.name || loknr}`,
+            diseaseType: diseaseType,
+            diseaseName: displayName,
+            zoneType: 'surveillance',
+            localityNo: loknr,
+            localityName: loc.locality?.name,
+            municipality: loc.municipality?.name,
+            radiusKm: 10,
+            center: { lat, lng: lon }
+          }
+        });
+
+        // For ILA: Lag også beskyttelsessone (3km radius)
+        if (diseaseType === 'ILA') {
           features.push({
             type: 'Feature',
-            geometry: area.geometry,
+            geometry: {
+              type: 'Point',
+              coordinates: [lon, lat]
+            },
             properties: {
-              id: area.id || area.controlAreaId,
-              name: area.name || area.controlAreaName,
-              diseaseType: area.diseaseType || area.disease || 'ILA',
-              zoneType: area.zoneType || area.type || 'surveillance', // 'surveillance' eller 'protection'
-              validFrom: area.validFrom || area.establishedDate,
-              validTo: area.validTo,
-              regulation: area.regulation || area.regulationName,
-              municipality: area.municipality,
-              county: area.county,
-              radiusKm: area.radiusKm || 10,
-              center: area.center || null,
+              id: `ILA-${loknr}-protection`,
+              name: `ILA beskyttelsessone ${loc.locality?.name || loknr}`,
+              diseaseType: 'ILA',
+              diseaseName: displayName,
+              zoneType: 'protection',
+              localityNo: loknr,
+              localityName: loc.locality?.name,
+              municipality: loc.municipality?.name,
+              radiusKm: 3,
+              center: { lat, lng: lon }
             }
           });
         }
       });
-    }
+    });
 
     const result = {
       type: 'FeatureCollection',
       features: features,
       fetchedAt: new Date().toISOString(),
-      source: 'BarentsWatch'
+      source: 'BarentsWatch',
+      stats: {
+        totalZones: features.length,
+        ilaZones: features.filter(f => f.properties.diseaseType === 'ILA').length,
+        pdZones: features.filter(f => f.properties.diseaseType === 'PD').length,
+        otherZones: features.filter(f => !['ILA', 'PD'].includes(f.properties.diseaseType)).length
+      }
     };
 
     // Oppdater cache
     diseaseZonesCache.data = result;
     diseaseZonesCache.fetchedAt = Date.now();
 
-    console.log(`✅ Cached ${features.length} disease zones from BarentsWatch`);
+    console.log(`✅ Cached ${features.length} disease zones from BarentsWatch (ILA: ${result.stats.ilaZones}, PD: ${result.stats.pdZones})`);
     return result;
 
   } catch (error) {
@@ -112,8 +194,8 @@ async function getDiseaseZones() {
 }
 
 /**
- * Hent verneområder fra GeoNorge WFS
- * Bruker WFS-tjenesten for naturvernområder
+ * Hent verneområder fra Miljødirektoratet ArcGIS REST API
+ * Bruker vern MapServer for naturvernområder
  */
 async function getProtectedAreas(bbox = null) {
   // Sjekk cache (uten bbox for full data)
@@ -126,24 +208,31 @@ async function getProtectedAreas(bbox = null) {
   }
 
   try {
-    console.log('Fetching protected areas from GeoNorge WFS...');
+    console.log('Fetching protected areas from Miljødirektoratet...');
 
-    // GeoNorge WFS for naturvernområder
-    const baseUrl = 'https://wfs.geonorge.no/skwms1/wfs.naturvern';
+    // Miljødirektoratet ArcGIS REST API for naturvernområder
+    const baseUrl = 'https://kart.miljodirektoratet.no/arcgis/rest/services/vern/MapServer/0/query';
 
-    // Bygg WFS GetFeature request
-    let wfsUrl = `${baseUrl}?service=WFS&version=2.0.0&request=GetFeature&typeName=naturvern:Naturvernomrade&outputFormat=application/json&srsName=EPSG:4326`;
+    // Bygg query parameters
+    const params = new URLSearchParams({
+      where: '1=1', // Hent alle
+      outFields: 'naturvernId,navn,verneform,vernedato,kommune,forvaltningsmyndighet,iucn',
+      f: 'geojson', // GeoJSON format
+      outSR: '4326', // WGS84 koordinater
+      resultRecordCount: '500' // Begrens for ytelse
+    });
 
-    // Legg til bbox filter hvis spesifisert
+    // Legg til bbox filter hvis spesifisert (format: minX,minY,maxX,maxY)
     if (bbox) {
-      // bbox format: minLng,minLat,maxLng,maxLat
-      wfsUrl += `&bbox=${bbox},EPSG:4326`;
+      params.set('geometry', bbox);
+      params.set('geometryType', 'esriGeometryEnvelope');
+      params.set('inSR', '4326');
+      params.set('spatialRel', 'esriSpatialRelIntersects');
     }
 
-    // Begrens antall features for ytelse
-    wfsUrl += '&count=500';
+    const queryUrl = `${baseUrl}?${params.toString()}`;
 
-    const response = await fetch(wfsUrl, {
+    const response = await fetch(queryUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -151,29 +240,36 @@ async function getProtectedAreas(bbox = null) {
     });
 
     if (!response.ok) {
-      console.error(`GeoNorge WFS request failed: ${response.status} ${response.statusText}`);
+      console.error(`Miljødirektoratet request failed: ${response.status} ${response.statusText}`);
       return getMockProtectedAreas();
     }
 
     const data = await response.json();
-    console.log(`Received ${data.features?.length || 0} protected areas from GeoNorge`);
+    console.log(`Received ${data.features?.length || 0} protected areas from Miljødirektoratet`);
 
-    // Transform properties til norsk-vennlig format
+    // Transform til vårt format
     const features = (data.features || []).map(feature => {
       const props = feature.properties || {};
+
+      // Parse vernedato til år
+      let establishedYear = null;
+      if (props.vernedato) {
+        // vernedato er ofte epoch timestamp i ms
+        const date = new Date(props.vernedato);
+        establishedYear = date.getFullYear();
+      }
+
       return {
         type: 'Feature',
         geometry: feature.geometry,
         properties: {
-          id: props.objektid || props.id,
-          name: props.navn || props.omradenavn || 'Ukjent verneområde',
-          areaType: props.verneform || props.vernetype || 'naturreservat',
-          establishedYear: props.vernear || props.vernet_ar,
-          areaKm2: props.areal_km2 || props.landareal_km2,
-          regulation: props.forskrift || props.forvaltningsmyndighet,
-          iucnCategory: props.iucn_kategori,
+          id: props.naturvernId || props.OBJECTID,
+          name: props.navn || 'Ukjent verneområde',
+          areaType: props.verneform || 'naturreservat',
+          establishedYear: establishedYear,
+          regulation: props.forvaltningsmyndighet,
+          iucnCategory: props.iucn,
           municipality: props.kommune,
-          county: props.fylke,
         }
       };
     });
@@ -182,22 +278,165 @@ async function getProtectedAreas(bbox = null) {
       type: 'FeatureCollection',
       features: features,
       fetchedAt: new Date().toISOString(),
-      source: 'GeoNorge'
+      source: 'Miljødirektoratet'
     };
 
     // Oppdater cache kun hvis vi hentet full data (uten bbox)
     if (!bbox) {
       protectedAreasCache.data = result;
       protectedAreasCache.fetchedAt = Date.now();
-      console.log(`✅ Cached ${features.length} protected areas from GeoNorge`);
+      console.log(`✅ Cached ${features.length} protected areas from Miljødirektoratet`);
     }
 
     return result;
 
   } catch (error) {
-    console.error('Error fetching protected areas from GeoNorge:', error);
+    console.error('Error fetching protected areas from Miljødirektoratet:', error);
     return getMockProtectedAreas();
   }
+}
+
+/**
+ * Hent lokalitets-polygoner fra Fiskeridirektoratet WFS
+ * Returnerer faktiske oppdrettsanlegg-grenser
+ */
+async function getLocalityPolygons() {
+  // Sjekk cache
+  if (localityPolygonsCache.data && localityPolygonsCache.fetchedAt) {
+    const age = Date.now() - localityPolygonsCache.fetchedAt;
+    if (age < CACHE_TTL_MS) {
+      console.log('Returning cached locality polygons data');
+      return localityPolygonsCache.data;
+    }
+  }
+
+  try {
+    console.log('Fetching locality polygons from GeoNorge WFS (GML)...');
+
+    // GeoNorge WFS for akvakulturlokaliteter (polygon-grenser)
+    const wfsUrl = 'https://wfs.geonorge.no/skwms1/wfs.akvakulturlokaliteter';
+
+    const params = new URLSearchParams({
+      service: 'WFS',
+      version: '2.0.0',
+      request: 'GetFeature',
+      typeName: 'app:AkvakulturFlate',
+      srsName: 'EPSG:4326',
+      count: '10000'
+    });
+
+    const response = await fetch(`${wfsUrl}?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/xml',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`GeoNorge WFS request failed: ${response.status}`);
+      throw new Error(`WFS request failed: ${response.status}`);
+    }
+
+    const gmlText = await response.text();
+    console.log(`Received GML response (${gmlText.length} bytes)`);
+
+    // Parse GML to extract polygons
+    const features = parseGMLToGeoJSON(gmlText);
+    console.log(`Parsed ${features.length} locality polygons from GML`);
+
+    const result = {
+      type: 'FeatureCollection',
+      features: features,
+      fetchedAt: new Date().toISOString(),
+      source: 'GeoNorge'
+    };
+
+    // Oppdater cache
+    localityPolygonsCache.data = result;
+    localityPolygonsCache.fetchedAt = Date.now();
+    console.log(`✅ Cached ${features.length} locality polygons from GeoNorge`);
+
+    return result;
+
+  } catch (error) {
+    console.error('Error fetching locality polygons:', error);
+    // Returner tom FeatureCollection ved feil
+    return {
+      type: 'FeatureCollection',
+      features: [],
+      fetchedAt: new Date().toISOString(),
+      source: 'Error',
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Parse GML response to GeoJSON features
+ */
+function parseGMLToGeoJSON(gmlText) {
+  const features = [];
+
+  // Regex to extract AkvakulturFlate elements
+  const featureRegex = /<app:AkvakulturFlate[^>]*gml:id="([^"]+)"[^>]*>([\s\S]*?)<\/app:AkvakulturFlate>/g;
+  const posListRegex = /<gml:posList>([^<]+)<\/gml:posList>/;
+  const firmaRegex = /<app:firmanavn>([^<]*)<\/app:firmanavn>/;
+  const artRegex = /<app:akvaArt>([^<]*)<\/app:akvaArt>/g;
+  const plasseringRegex = /<app:akvaPlassering>([^<]*)<\/app:akvaPlassering>/;
+  const vannmiljoRegex = /<app:akvaVannmiljø>([^<]*)<\/app:akvaVannmiljø>/;
+
+  let match;
+  while ((match = featureRegex.exec(gmlText)) !== null) {
+    const id = match[1];
+    const content = match[2];
+
+    // Extract coordinates from posList
+    const posListMatch = posListRegex.exec(content);
+    if (!posListMatch) continue;
+
+    const posListStr = posListMatch[1].trim();
+    const coords = posListStr.split(/\s+/).map(Number);
+
+    // Convert to GeoJSON coordinate pairs [lng, lat]
+    const coordinates = [];
+    for (let i = 0; i < coords.length; i += 2) {
+      if (i + 1 < coords.length) {
+        coordinates.push([coords[i], coords[i + 1]]);
+      }
+    }
+
+    if (coordinates.length < 3) continue;
+
+    // Extract properties
+    const firmaMatch = firmaRegex.exec(content);
+    const plasseringMatch = plasseringRegex.exec(content);
+    const vannmiljoMatch = vannmiljoRegex.exec(content);
+
+    // Extract all art types
+    const artTypes = [];
+    let artMatch;
+    while ((artMatch = artRegex.exec(content)) !== null) {
+      artTypes.push(artMatch[1]);
+    }
+
+    features.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [coordinates]
+      },
+      properties: {
+        id: id,
+        owner: firmaMatch ? firmaMatch[1] : null,
+        organisasjon: firmaMatch ? firmaMatch[1] : null,
+        plassering: plasseringMatch ? plasseringMatch[1] : null,
+        vannmiljo: vannmiljoMatch ? vannmiljoMatch[1] : null,
+        art: artTypes.join(', ')
+      }
+    });
+  }
+
+  return features;
 }
 
 /**
@@ -447,6 +686,7 @@ function clearZonesCache() {
 module.exports = {
   getDiseaseZones,
   getProtectedAreas,
+  getLocalityPolygons,
   clearZonesCache,
   getMockDiseaseZones,
   getMockProtectedAreas,

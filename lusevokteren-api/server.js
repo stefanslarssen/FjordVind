@@ -130,8 +130,8 @@ app.use('/api/locality-boundaries', (req, res, next) => {
   routes.barentswatch(req, res, next);
 });
 app.use('/api/locality-polygons', (req, res, next) => {
-  req.url = '/locality-polygons' + req.url;
-  routes.barentswatch(req, res, next);
+  req.url = '/locality-polygons';
+  routes.zones(req, res, next);
 });
 app.use('/api/nearby-farms', (req, res, next) => {
   req.url = '/nearby-farms' + req.url;
