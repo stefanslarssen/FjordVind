@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://gis.fiskeridir.no https://id.barentswatch.no https://www.barentswatch.no https://api.met.no https://frost.met.no; font-src 'self' data:; frame-src 'self'"
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://gis.fiskeridir.no https://id.barentswatch.no https://www.barentswatch.no https://api.met.no https://frost.met.no https://*.tile.openstreetmap.org; font-src 'self' data:; frame-src 'self'"
     }
   },
   "bundle": {
