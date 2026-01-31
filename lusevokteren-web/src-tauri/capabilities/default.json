@@ -1,0 +1,52 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for FjordVind desktop app",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-set-title",
+    "core:app:allow-version",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "https://*.tile.openstreetmap.org/**" },
+        { "url": "https://unpkg.com/**" },
+        { "url": "https://*.supabase.co/**" },
+        { "url": "https://api.met.no/**" },
+        { "url": "https://gis.fiskeridir.no/**" },
+        { "url": "https://ogc.fiskeridir.no/**" },
+        { "url": "https://wfs.barentswatch.no/**" },
+        { "url": "https://*.barentswatch.no/**" },
+        { "url": "https://id.barentswatch.no/**" },
+        { "url": "https://www.barentswatch.no/**" },
+        { "url": "https://frost.met.no/**" },
+        { "url": "http://localhost:**" }
+      ]
+    },
+    {
+      "identifier": "http:allow-fetch-send",
+      "allow": [
+        { "url": "https://*.tile.openstreetmap.org/**" },
+        { "url": "https://unpkg.com/**" },
+        { "url": "https://*.supabase.co/**" },
+        { "url": "https://api.met.no/**" },
+        { "url": "https://gis.fiskeridir.no/**" },
+        { "url": "https://ogc.fiskeridir.no/**" },
+        { "url": "https://wfs.barentswatch.no/**" },
+        { "url": "https://*.barentswatch.no/**" },
+        { "url": "https://id.barentswatch.no/**" },
+        { "url": "https://www.barentswatch.no/**" },
+        { "url": "https://frost.met.no/**" },
+        { "url": "http://localhost:**" }
+      ]
+    }
+  ]
+}

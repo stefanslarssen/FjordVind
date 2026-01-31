@@ -1,8 +1,10 @@
 {
-  "name": "lusevokteren-web",
+  "name": "fjordvind",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
+  "description": "FjordVind - Profesjonell luseovervåking for norsk oppdrettsnæring",
+  "author": "FjordVind AS",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -19,7 +21,11 @@
     "cap:ios": "npm run build && npx cap sync ios && npx cap open ios",
     "cap:android": "npm run build && npx cap sync android && npx cap open android",
     "cap:run:ios": "npm run build && npx cap sync ios && npx cap run ios",
-    "cap:run:android": "npm run build && npx cap sync android && npx cap run android"
+    "cap:run:android": "npm run build && npx cap sync android && npx cap run android",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --debug"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.2",
@@ -31,6 +37,7 @@
     "@capacitor/splash-screen": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@tauri-apps/plugin-http": "^2.5.6",
     "date-fns": "^3.0.0",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
@@ -39,9 +46,13 @@
     "react-leaflet": "^4.2.1",
     "react-leaflet-cluster": "^2.1.0",
     "react-router-dom": "^6.20.0",
-    "recharts": "^2.10.3"
+    "recharts": "^2.10.3",
+    "vite-plugin-pwa": "^1.2.0",
+    "workbox-window": "^7.4.0"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/cli": "^2.9.6",
     "@testing-library/cypress": "^10.1.0",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^14.2.0",

@@ -1,0 +1,50 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "FjordVind",
+  "version": "1.0.0",
+  "identifier": "no.fjordvind.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5174",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "FjordVind - Luseovervåking",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "shortDescription": "Profesjonell luseovervåking for norsk oppdrettsnæring",
+    "longDescription": "FjordVind er en komplett løsning for overvåking av lakselus i norske oppdrettsanlegg. Appen gir sanntidsdata, prediksjoner, varsler og rapportering for å hjelpe oppdrettere med å holde lusenivåene under kontroll.",
+    "copyright": "2024 FjordVind",
+    "category": "Business",
+    "publisher": "FjordVind"
+  }
+}
