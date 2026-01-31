@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e3a5f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bgGradient)"/>
+
+  <!-- FjordVind Icon - Mountain/Wind Lines (scaled up from 100x100) -->
+  <g transform="translate(192, 262) scale(6.4)">
+    <path d="M15 65 L32 35 L50 50 L70 22" stroke="#60a5fa" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 78 L45 78" stroke="#3b82f6" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M35 88 L85 88" stroke="#93c5fd" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
