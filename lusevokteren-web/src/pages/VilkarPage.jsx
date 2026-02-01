@@ -44,7 +44,7 @@ function VilkarPage() {
             bruke Tjenesten.
           </p>
           <p style={{ marginTop: '12px' }}>
-            Tjenesten leveres av {companyName} (org.nr. XXX XXX XXX).
+            Tjenesten leveres av {companyName}.
           </p>
         </section>
 
