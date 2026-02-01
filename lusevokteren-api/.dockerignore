@@ -1,49 +1,47 @@
 # Dependencies
 node_modules
 npm-debug.log
+yarn-error.log
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.md
+LICENSE
+
+# Testing
+tests/
+coverage/
+*.test.js
+jest.config.js
 
 # Git
 .git
 .gitignore
 
-# Environment files (secrets)
-.env
-.env.local
-.env.*.local
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
 
 # IDE
-.vscode
-.idea
+.idea/
+.vscode/
 *.swp
 *.swo
 
-# Test files
-tests/
-*.test.js
-coverage/
-.nyc_output/
-
-# Documentation (built separately)
-docs/
-
-# Development files
-.eslintrc*
-.prettierrc*
-jest.config.js
-nodemon.json
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 logs/
 *.log
 
-# Uploads (mounted as volume)
-uploads/
+# Build artifacts
+dist/
+build/
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Docker files
-Dockerfile*
-docker-compose*
-.dockerignore
+# Misc
+*.env.example

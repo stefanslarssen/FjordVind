@@ -13,6 +13,7 @@ require('dotenv').config();
 // Logging
 const logger = require('./utils/logger');
 const { requestLogger, errorLogger, errorHandler } = require('./middleware/requestLogger');
+const { requestIdMiddleware } = require('./middleware/requestId');
 
 // Error Monitoring (Sentry-ready)
 const errorMonitoring = require('./utils/errorMonitoring');
@@ -79,6 +80,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+app.use(requestIdMiddleware);  // Add unique request ID for tracing
 app.use(generalLimiter);
 app.use(metrics.metricsMiddleware());
 app.use(requestLogger);
@@ -102,6 +104,10 @@ app.use('/uploads', express.static(uploadsDir));
 // Authentication middleware
 const { optionalAuth } = require('./middleware/auth');
 app.use(optionalAuth);
+
+// Database context middleware (sets user context for RLS policies)
+const dbContextMiddleware = require('./middleware/dbContext');
+app.use(dbContextMiddleware);
 
 // =============================================
 // ROUTE MODULES
@@ -179,6 +185,9 @@ app.use('/api/weather', routes.weather);
 
 // Reports
 app.use('/api/reports', routes.reports);
+
+// Support
+app.use('/api/support', routes.support);
 
 // Feeding (alias for dashboard feeding endpoint)
 app.use('/api/feeding', (req, res, next) => {
@@ -266,6 +275,12 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   getAquacultureCompanies()
     .then(() => logger.info('Company data cached and ready'))
     .catch(err => logger.error('Failed to pre-cache company data', { error: err.message }));
+
+  // Start prediction scheduler (generates daily predictions)
+  if (process.env.ENABLE_PREDICTION_SCHEDULER !== 'false') {
+    const predictionScheduler = require('./jobs/predictionScheduler');
+    predictionScheduler.start();
+  }
 });
 
 // =============================================
@@ -279,6 +294,14 @@ async function gracefulShutdown(signal) {
   isShuttingDown = true;
 
   logger.info(`${signal} received, starting graceful shutdown...`);
+
+  // Stop prediction scheduler
+  try {
+    const predictionScheduler = require('./jobs/predictionScheduler');
+    predictionScheduler.stop();
+  } catch (err) {
+    // Scheduler may not be loaded
+  }
 
   server.close(async () => {
     logger.info('HTTP server closed');

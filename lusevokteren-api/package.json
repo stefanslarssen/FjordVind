@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^9.4.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -28,8 +29,11 @@
     "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "nodemailer": "^6.9.8",
+    "pdfkit": "^0.15.2",
     "pg": "^8.11.3",
     "swagger-ui-express": "^5.0.1",
+    "web-push": "^3.6.7",
     "winston": "^3.19.0",
     "yamljs": "^0.3.0"
   },

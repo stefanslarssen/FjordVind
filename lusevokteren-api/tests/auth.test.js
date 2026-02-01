@@ -79,12 +79,18 @@ describe('Auth Middleware', () => {
       expect(user).toBeNull();
     });
 
-    it('should extract demo user from demo token (in non-production)', () => {
+    it('should extract demo user from demo token (when DEMO_MODE enabled)', () => {
+      const { DEMO_MODE } = require('../middleware/auth');
       const user = extractUserFromToken('demo_token_admin');
 
-      // In test/dev mode, demo tokens should work
-      expect(user).toBeDefined();
-      expect(user.role).toBe('admin');
+      if (DEMO_MODE) {
+        // Demo mode is enabled, tokens should work
+        expect(user).toBeDefined();
+        expect(user.role).toBe('admin');
+      } else {
+        // Demo mode is disabled, demo tokens should not work
+        expect(user).toBeNull();
+      }
     });
   });
 

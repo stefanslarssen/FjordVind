@@ -1,8 +1,9 @@
-# =============================================
 # FjordVind Lusevokteren API - Production Dockerfile
-# =============================================
+# Multi-stage build for smaller image size
 
+# ============================================
 # Stage 1: Build dependencies
+# ============================================
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -10,51 +11,48 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev for potential build steps)
-RUN npm ci --only=production
+# Install all dependencies (including devDependencies for build)
+RUN npm ci --only=production && npm cache clean --force
 
+# ============================================
 # Stage 2: Production image
+# ============================================
 FROM node:20-alpine AS production
 
-# Add labels for container metadata
-LABEL org.opencontainers.image.title="Lusevokteren API"
-LABEL org.opencontainers.image.description="FjordVind Sea Lice Monitoring API"
+# Add labels
+LABEL org.opencontainers.image.title="FjordVind Lusevokteren API"
+LABEL org.opencontainers.image.description="REST API for sea lice monitoring"
 LABEL org.opencontainers.image.vendor="FjordVind AS"
-
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+LABEL org.opencontainers.image.version="1.1.0"
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser -S nodejs -u 1001 -G nodejs
 
 WORKDIR /app
 
-# Copy dependencies from builder stage
+# Copy node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy application code
 COPY --chown=nodejs:nodejs . .
 
-# Create uploads directory with correct permissions
-RUN mkdir -p /app/uploads && chown -R nodejs:nodejs /app/uploads
+# Remove development files
+RUN rm -rf tests/ coverage/ .git/ *.md Dockerfile docker-compose.yml
 
-# Set environment variables
+# Set environment
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Expose port
-EXPOSE 3000
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Switch to non-root user
 USER nodejs
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
+# Expose port
+EXPOSE 3000
 
 # Start the application
 CMD ["node", "server.js"]

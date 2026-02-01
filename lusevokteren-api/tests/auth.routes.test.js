@@ -130,14 +130,20 @@ describe('Auth Routes', () => {
       expect(res.body.code).toBe('INVALID_TOKEN');
     });
 
-    it('should return user data for demo token', async () => {
+    it('should return user data for demo token (when DEMO_MODE enabled)', async () => {
+      const { DEMO_MODE } = require('../middleware/auth');
       const res = await request(app)
         .get('/api/auth/me')
         .set('Authorization', 'Bearer demo_token_admin');
 
-      expect(res.status).toBe(200);
-      expect(res.body.user).toBeDefined();
-      expect(res.body.user.role).toBe('admin');
+      if (DEMO_MODE) {
+        expect(res.status).toBe(200);
+        expect(res.body.user).toBeDefined();
+        expect(res.body.user.role).toBe('admin');
+      } else {
+        // Demo mode is disabled, demo tokens should fail
+        expect(res.status).toBe(401);
+      }
     });
 
     it('should return user data for valid JWT', async () => {
@@ -169,9 +175,18 @@ describe('Auth Routes', () => {
     });
 
     it('should return new token for valid auth', async () => {
+      const { generateToken } = require('../middleware/auth');
+      const token = generateToken({
+        id: 'test-123',
+        email: 'test@test.no',
+        role: 'driftsleder',
+        company_id: 'company-123',
+        full_name: 'Test User'
+      });
+
       const res = await request(app)
         .post('/api/auth/refresh')
-        .set('Authorization', 'Bearer demo_token_admin');
+        .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
       expect(res.body.token).toBeDefined();

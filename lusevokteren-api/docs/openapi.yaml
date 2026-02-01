@@ -34,7 +34,7 @@ info:
 
     **Note:** Demo mode is disabled in production.
 
-  version: 1.2.0
+  version: 1.3.0
   contact:
     name: FjordVind Support
     email: support@fjordvind.no
@@ -68,6 +68,12 @@ tags:
     description: Dashboard statistics
   - name: Predictions
     description: Lice predictions and risk scores
+  - name: Notifications
+    description: Push notifications, SMS, and alert preferences
+  - name: Reports
+    description: PDF report generation for Mattilsynet and internal use
+  - name: Monitoring
+    description: System health, metrics, and status
 
 paths:
   /health:
@@ -546,6 +552,251 @@ paths:
         '200':
           description: Risk scores
 
+  # ========== NOTIFICATIONS ==========
+  /api/push/vapid-public-key:
+    get:
+      summary: Get VAPID public key for push notifications
+      tags: [Notifications]
+      responses:
+        '200':
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey:
+                    type: string
+                    description: Base64-encoded VAPID public key
+
+  /api/push/subscribe:
+    post:
+      summary: Subscribe to push notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscription'
+      responses:
+        '201':
+          description: Subscription created
+        '400':
+          description: Invalid subscription data
+
+  /api/push/unsubscribe:
+    post:
+      summary: Unsubscribe from push notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+      responses:
+        '200':
+          description: Unsubscribed successfully
+
+  /api/alert-preferences:
+    get:
+      summary: Get user's alert preferences
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Alert preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertPreferences'
+
+    put:
+      summary: Update alert preferences
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+
+  /api/sms/send:
+    post:
+      summary: Send SMS notification (admin only)
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+                - message
+              properties:
+                phone_number:
+                  type: string
+                  pattern: '^(\+47)?[2-9]\d{7}$'
+                message:
+                  type: string
+                  maxLength: 160
+      responses:
+        '200':
+          description: SMS sent
+        '403':
+          description: Not authorized
+
+  # ========== REPORTS ==========
+  /api/reports/pdf/mattilsynet:
+    get:
+      summary: Generate Mattilsynet PDF report
+      description: |
+        Generates an official PDF report for the Norwegian Food Safety Authority (Mattilsynet).
+        Report includes lice counts, compliance status, and treatment history.
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          schema:
+            type: string
+          description: Filter by location
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/reports/pdf/treatment:
+    get:
+      summary: Generate treatment history PDF report
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/reports/pdf/lice:
+    get:
+      summary: Generate lice summary PDF report
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # ========== MONITORING ==========
+  /monitoring/health:
+    get:
+      summary: Detailed health check
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+
+  /monitoring/metrics:
+    get:
+      summary: Get system metrics
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uptime:
+                    type: number
+                  memory:
+                    type: object
+                  requests:
+                    type: object
+
+  /monitoring/status:
+    get:
+      summary: Get API status
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: API status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  environment:
+                    type: string
+
 components:
   securitySchemes:
     bearerAuth:
@@ -784,3 +1035,130 @@ components:
           type: number
         ph:
           type: number
+
+    # ========== ERROR SCHEMAS ==========
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Valideringsfeil
+            requestId:
+              type: string
+              description: Unique request ID for tracing
+              example: 1706803200000-abc123def456
+            timestamp:
+              type: string
+              format: date-time
+            details:
+              type: object
+              description: Additional error details (validation errors, etc.)
+
+    # ========== NOTIFICATION SCHEMAS ==========
+    PushSubscription:
+      type: object
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        expirationTime:
+          type: integer
+          nullable: true
+        keys:
+          type: object
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+            auth:
+              type: string
+
+    AlertPreferences:
+      type: object
+      properties:
+        email_notifications:
+          type: boolean
+          default: true
+        sms_notifications:
+          type: boolean
+          default: false
+        push_notifications:
+          type: boolean
+          default: true
+        email_address:
+          type: string
+          format: email
+        phone_number:
+          type: string
+          pattern: '^(\+47)?[2-9]\d{7}$'
+        lice_threshold_warning:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.3
+          description: Warning threshold for adult female lice per fish
+        lice_threshold_critical:
+          type: number
+          minimum: 0
+          maximum: 2
+          default: 0.5
+          description: Critical threshold (Mattilsynet limit is 0.5, or 0.2 in spring)
+        notify_on_critical:
+          type: boolean
+          default: true
+        notify_on_treatment:
+          type: boolean
+          default: true
+        notify_on_mortality:
+          type: boolean
+          default: false
+        daily_summary:
+          type: boolean
+          default: false
+
+    # ========== MONITORING SCHEMAS ==========
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        checks:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency:
+                  type: number
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+            externalApis:
+              type: object
+              properties:
+                barentswatch:
+                  type: string
