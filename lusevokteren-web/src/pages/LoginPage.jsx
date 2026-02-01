@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const { signIn, isDemoMode, getDemoUsers } = useAuth()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
 
   // Check for success messages from redirects
@@ -25,20 +25,16 @@ export default function LoginPage() {
       await signIn(email, password)
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      if (err.message.includes('Invalid login credentials')) {
+        setError('Feil e-post eller passord')
+      } else if (err.message.includes('Email not confirmed')) {
+        setError('E-postadressen er ikke bekreftet. Sjekk innboksen din.')
+      } else {
+        setError(err.message || 'Innlogging feilet')
+      }
     } finally {
       setIsLoading(false)
     }
-  }
-
-  function handleDemoLogin(demoUser) {
-    const demoPasswords = {
-      'admin@fjordvind.no': 'admin123',
-      'leder@fjordvind.no': 'leder123',
-      'rokter@fjordvind.no': 'rokter123'
-    }
-    setEmail(demoUser.email)
-    setPassword(demoPasswords[demoUser.email] || '')
   }
 
   const inputStyle = {
@@ -197,62 +193,21 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Demo Mode Info */}
-        {isDemoMode && (
-          <div className="card" style={{ marginTop: '16px', padding: '20px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '12px',
-              color: 'var(--warning)'
-            }}>
-              <span style={{ fontSize: '18px' }}>!</span>
-              <span style={{ fontWeight: '600' }}>Demo-modus</span>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 16px 0' }}>
-              Supabase er ikke konfigurert. Bruk en av demo-brukerne:
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {getDemoUsers().map(user => (
-                <button
-                  key={user.id}
-                  type="button"
-                  onClick={() => handleDemoLogin(user)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '10px 14px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg)',
-                    color: 'var(--text)',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>{user.full_name}</span>
-                  <span style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    background: user.role === 'admin' ? 'rgba(239, 68, 68, 0.2)' :
-                               user.role === 'driftsleder' ? 'rgba(59, 130, 246, 0.2)' :
-                               'rgba(34, 197, 94, 0.2)',
-                    color: user.role === 'admin' ? '#ef4444' :
-                           user.role === 'driftsleder' ? '#3b82f6' :
-                           '#22c55e',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}>
-                    {user.role}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Legal links footer */}
+        <div style={{
+          marginTop: '24px',
+          textAlign: 'center',
+          fontSize: '13px',
+          color: 'var(--text-secondary)'
+        }}>
+          <Link to="/personvern" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
+            Personvern
+          </Link>
+          <span style={{ margin: '0 8px' }}>|</span>
+          <Link to="/vilkar" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
+            Brukervilkår
+          </Link>
+        </div>
       </div>
     </div>
   )

@@ -8,9 +8,10 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const { signUp, isDemoMode } = useAuth()
+  const { signUp } = useAuth()
   const navigate = useNavigate()
 
   async function handleSubmit(e) {
@@ -30,10 +31,14 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      await signUp(email, password, fullName)
-      navigate('/')
+      await signUp(email, password, { full_name: fullName, role: 'bruker' })
+      setSuccess(true)
     } catch (err) {
-      setError(err.message)
+      if (err.message.includes('already registered')) {
+        setError('Denne e-postadressen er allerede registrert')
+      } else {
+        setError(err.message || 'Registrering feilet')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -55,6 +60,49 @@ export default function SignupPage() {
     marginBottom: '8px',
     fontWeight: '500',
     color: 'var(--text-secondary)'
+  }
+
+  if (success) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+        background: 'var(--bg-dark)'
+      }}>
+        <div style={{ width: '100%', maxWidth: '400px' }}>
+          <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(34, 197, 94, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+              fontSize: '32px'
+            }}>
+              ✓
+            </div>
+            <h2 style={{ margin: '0 0 12px 0', color: 'var(--text)' }}>Konto opprettet!</h2>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 24px 0' }}>
+              Vi har sendt en bekreftelseslenke til {email}.
+              Sjekk innboksen din og klikk på lenken for å aktivere kontoen.
+            </p>
+            <Link
+              to="/login"
+              className="btn btn-primary"
+              style={{ display: 'inline-block', padding: '12px 24px' }}
+            >
+              Gå til innlogging
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -185,24 +233,22 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* Demo Mode Info */}
-        {isDemoMode && (
-          <div className="card" style={{ marginTop: '16px', padding: '20px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '8px',
-              color: 'var(--warning)'
-            }}>
-              <span style={{ fontSize: '18px' }}>!</span>
-              <span style={{ fontWeight: '600' }}>Demo-modus</span>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-              Nye brukere lagres kun i denne nettleserøkten og vil forsvinne ved refresh.
-            </p>
-          </div>
-        )}
+        {/* Legal links footer */}
+        <div style={{
+          marginTop: '24px',
+          textAlign: 'center',
+          fontSize: '13px',
+          color: 'var(--text-secondary)'
+        }}>
+          <span>Ved å opprette konto godtar du våre </span>
+          <Link to="/vilkar" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+            brukervilkår
+          </Link>
+          <span> og </span>
+          <Link to="/personvern" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+            personvernerklæring
+          </Link>
+        </div>
       </div>
     </div>
   )

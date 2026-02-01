@@ -5,6 +5,7 @@ import { useLanguage } from './contexts/LanguageContext'
 import { MobileMenuProvider, useMobileMenu } from './contexts/MobileMenuContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import OfflineIndicator from './components/OfflineIndicator'
+import CookieConsent from './components/CookieConsent'
 import HamburgerButton from './components/HamburgerButton'
 import MobileOverlay from './components/MobileOverlay'
 import OnboardingWizard from './components/OnboardingWizard'
@@ -38,6 +39,8 @@ const LoginPage = lazy(() => import('./pages/LoginPage'))
 const SignupPage = lazy(() => import('./pages/SignupPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const PersonvernPage = lazy(() => import('./pages/PersonvernPage'))
+const VilkarPage = lazy(() => import('./pages/VilkarPage'))
 
 // Fallback-komponent mens sider laster
 function PageLoader() {
@@ -414,6 +417,8 @@ export default function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/personvern" element={<PersonvernPage />} />
+          <Route path="/vilkar" element={<VilkarPage />} />
 
           {/* Protected routes */}
           <Route
@@ -431,6 +436,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <OfflineIndicator />
+      <CookieConsent />
     </>
   )
 }
