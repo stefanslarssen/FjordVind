@@ -8,6 +8,10 @@ import ErrorBoundary from './components/ErrorBoundary'
 import App from './App.jsx'
 import './styles.css'
 import { registerServiceWorker } from './utils/offlineSync'
+import { initSentry } from './utils/sentry'
+
+// Initialize Sentry for production error tracking
+initSentry()
 
 // Registrer service worker for offline-støtte
 if ('serviceWorker' in navigator) {
