@@ -25,8 +25,23 @@ export async function requestNotificationPermission() {
   return permission
 }
 
+// Get VAPID public key from server
+async function getVapidPublicKey() {
+  try {
+    const response = await fetch(`${API_URL}/api/push/vapid-public-key`, {
+      credentials: 'include'
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    return data.publicKey
+  } catch (err) {
+    console.error('Failed to get VAPID key:', err)
+    return null
+  }
+}
+
 // Subscribe to push notifications
-export async function subscribeToPush(userId) {
+export async function subscribeToPush() {
   if (!isPushSupported()) {
     throw new Error('Push notifications are not supported')
   }
@@ -36,18 +51,22 @@ export async function subscribeToPush(userId) {
     throw new Error('Notification permission denied')
   }
 
+  // Get VAPID key from server
+  const vapidKey = await getVapidPublicKey()
+  if (!vapidKey) {
+    throw new Error('Push not configured on server')
+  }
+
   const registration = await navigator.serviceWorker.ready
 
   // Get existing subscription or create new one
   let subscription = await registration.pushManager.getSubscription()
 
   if (!subscription) {
-    // Create new subscription
-    // In production, you need a VAPID public key from your server
+    // Create new subscription with VAPID key
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      // In production, use your VAPID public key:
-      // applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      applicationServerKey: urlBase64ToUint8Array(vapidKey)
     })
   }
 
@@ -57,9 +76,9 @@ export async function subscribeToPush(userId) {
     headers: {
       'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify({
-      subscription: subscription.toJSON(),
-      userId
+      subscription: subscription.toJSON()
     })
   })
 
@@ -69,7 +88,7 @@ export async function subscribeToPush(userId) {
 
   const data = await response.json()
   return {
-    subscriptionId: data.subscriptionId,
+    success: true,
     subscription
   }
 }
@@ -84,19 +103,20 @@ export async function unsubscribeFromPush() {
   const subscription = await registration.pushManager.getSubscription()
 
   if (subscription) {
-    // Unsubscribe locally
-    await subscription.unsubscribe()
-
-    // Notify server
+    // Notify server first
     await fetch(`${API_URL}/api/push/unsubscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({
         endpoint: subscription.endpoint
       })
     })
+
+    // Then unsubscribe locally
+    await subscription.unsubscribe()
   }
 
   return true

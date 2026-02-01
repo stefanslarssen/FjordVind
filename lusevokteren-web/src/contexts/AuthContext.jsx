@@ -1,20 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import {
-  signIn as authSignIn,
-  signUp as authSignUp,
-  signOut as authSignOut,
-  getCurrentUser,
-  getSession,
-  onAuthStateChange,
-  resetPassword as authResetPassword,
-  changePassword as authChangePassword,
-  refreshToken,
-  isDemoMode,
-  getDemoUsers,
-  getToken,
-  checkApiHealth,
-  getApiBaseUrl
-} from '../services/auth'
+import { supabase } from '../services/supabase'
 
 const AuthContext = createContext(null)
 
@@ -23,155 +8,120 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [apiAvailable, setApiAvailable] = useState(null)
 
   useEffect(() => {
-    // Check API health and existing session on mount
-    async function initAuth() {
-      try {
-        // Check if API is available
-        const health = await checkApiHealth()
-        setApiAvailable(health.ok)
-
-        // Get current session
-        const currentUser = await getCurrentUser()
-        const currentSession = await getSession()
-        setUser(currentUser)
-        setSession(currentSession)
-      } catch (err) {
-        console.error('Auth initialization error:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    initAuth()
-
-    // Subscribe to auth changes
-    const { data: { subscription } } = onAuthStateChange((event, session) => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setUser(session?.user || null)
-
-      if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setSession(null)
-      }
+      setUser(session?.user ?? null)
+      setLoading(false)
     })
 
-    return () => {
-      subscription?.unsubscribe?.()
-    }
-  }, [])
-
-  // Auto-refresh token periodically (every 6 hours)
-  useEffect(() => {
-    if (!session?.access_token) return
-
-    const interval = setInterval(async () => {
-      try {
-        await refreshToken()
-      } catch (err) {
-        console.error('Token refresh failed:', err)
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
       }
-    }, 6 * 60 * 60 * 1000)
+    )
 
-    return () => clearInterval(interval)
-  }, [session?.access_token])
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function signIn(email, password) {
     setError(null)
-    setLoading(true)
-    try {
-      const data = await authSignIn(email, password)
-      setUser(data.user)
-      setSession(data.session)
-      return data
-    } catch (err) {
-      setError(err.message)
-      throw err
-    } finally {
-      setLoading(false)
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+
+    if (error) {
+      setError(error.message)
+      throw error
     }
+
+    return data
   }
 
-  async function signUp(email, password, fullName, companyName = '', orgNumber = '') {
+  async function signUp(email, password, metadata = {}) {
     setError(null)
-    setLoading(true)
-    try {
-      const data = await authSignUp(email, password, fullName, companyName, orgNumber)
-      setUser(data.user)
-      setSession(data.session)
-      return data
-    } catch (err) {
-      setError(err.message)
-      throw err
-    } finally {
-      setLoading(false)
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata
+      }
+    })
+
+    if (error) {
+      setError(error.message)
+      throw error
     }
+
+    return data
   }
 
   async function signOut() {
-    setError(null)
-    try {
-      await authSignOut()
-      setUser(null)
-      setSession(null)
-    } catch (err) {
-      setError(err.message)
-      throw err
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      setError(error.message)
+      throw error
     }
+    setUser(null)
+    setSession(null)
   }
 
   async function resetPassword(email) {
     setError(null)
-    try {
-      await authResetPassword(email)
-    } catch (err) {
-      setError(err.message)
-      throw err
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    })
+
+    if (error) {
+      setError(error.message)
+      throw error
     }
   }
 
-  async function changePassword(currentPassword, newPassword) {
+  async function changePassword(newPassword) {
     setError(null)
-    try {
-      await authChangePassword(currentPassword, newPassword)
-    } catch (err) {
-      setError(err.message)
-      throw err
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (error) {
+      setError(error.message)
+      throw error
     }
   }
 
-  // Check if user has specific role
   function hasRole(requiredRole) {
     if (!user) return false
-    const userRole = user.role || user.user_metadata?.role
-    if (!userRole) return false
+    const userRole = user.user_metadata?.role || 'bruker'
 
-    const roleHierarchy = {
-      'admin': 3,
-      'driftsleder': 2,
-      'røkter': 1,
-      'viewer': 0
-    }
+    const roleHierarchy = ['bruker', 'driftsleder', 'admin']
+    const userLevel = roleHierarchy.indexOf(userRole)
+    const requiredLevel = roleHierarchy.indexOf(requiredRole)
 
-    return (roleHierarchy[userRole] || 0) >= (roleHierarchy[requiredRole] || 0)
+    return userLevel >= requiredLevel
   }
 
-  // Check if user is admin
   function isAdmin() {
     return hasRole('admin')
   }
 
-  // Check if user is driftsleder or higher
   function isDriftsleder() {
     return hasRole('driftsleder')
   }
 
-  // Get authorization header for API calls
   function getAuthHeader() {
-    const token = getToken()
-    return token ? { Authorization: `Bearer ${token}` } : {}
+    if (!session?.access_token) return {}
+    return { Authorization: `Bearer ${session.access_token}` }
+  }
+
+  function getToken() {
+    return session?.access_token || null
   }
 
   const value = {
@@ -187,13 +137,9 @@ export function AuthProvider({ children }) {
     hasRole,
     isAdmin,
     isDriftsleder,
-    isAuthenticated: !!user,
-    isDemoMode: isDemoMode(),
-    getDemoUsers,
+    isAuthenticated: !!session,
     getToken,
-    getAuthHeader,
-    apiAvailable,
-    apiBaseUrl: getApiBaseUrl()
+    getAuthHeader
   }
 
   return (

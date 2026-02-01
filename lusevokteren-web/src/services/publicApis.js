@@ -16,20 +16,21 @@ const debug = isDev ? console.log.bind(console, '[API]') : () => {}
 // In production Tauri build, we use the Tauri HTTP plugin
 async function getFetch() {
   if (isDev) {
+    console.log('[API] Using dev mode fetch')
     return window.fetch.bind(window)
   }
 
-  // In production, try Tauri HTTP plugin
-  if (window.__TAURI_INTERNALS__ || window.__TAURI__) {
-    try {
-      const httpModule = await import('@tauri-apps/plugin-http')
-      return httpModule.fetch
-    } catch (e) {
-      // Fallback to browser fetch silently
-    }
+  // In production Tauri, always try Tauri HTTP plugin first
+  try {
+    console.log('[API] Loading Tauri HTTP plugin...')
+    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http')
+    console.log('[API] Tauri HTTP plugin loaded successfully')
+    return tauriFetch
+  } catch (e) {
+    console.error('[API] Failed to load Tauri HTTP plugin:', e)
+    console.log('[API] Falling back to browser fetch')
+    return window.fetch.bind(window)
   }
-
-  return window.fetch.bind(window)
 }
 
 // Fiskeridirektoratet ArcGIS REST API (new endpoint as of 2025)
@@ -115,30 +116,56 @@ async function getBarentswatchToken() {
  */
 export async function fetchLocalitiesFromFiskeridir() {
   try {
-    const fetch = await getFetch()
+    console.log('[API] Starting fetchLocalitiesFromFiskeridir...')
+    console.log('[API] isDev:', isDev)
 
-    const params = new URLSearchParams({
-      where: "plassering='SJØ' AND vannmiljo='SALTVANN'",
-      outFields: '*',
-      f: 'geojson',
-      outSR: '4326',
-      resultRecordCount: '5000'
-    })
+    let data
+    const apiUrl = 'https://gis.fiskeridir.no/server/rest/services/Yggdrasil/Akvakulturregisteret/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson&outSR=4326&resultRecordCount=5000'
 
-    const url = `${FISKERIDIR_ARCGIS}?${params}`
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
+    if (isDev) {
+      // Dev mode - use fetch with Vite proxy
+      console.log('[API] Dev mode - using proxy...')
+      const params = new URLSearchParams({
+        where: "1=1",
+        outFields: '*',
+        f: 'geojson',
+        outSR: '4326',
+        resultRecordCount: '5000'
+      })
+      const url = `${FISKERIDIR_ARCGIS}?${params}`
+      const response = await window.fetch(url)
+      if (!response.ok) {
+        throw new Error(`Fiskeridirektoratet error: ${response.status}`)
       }
-    })
+      data = await response.json()
+    } else {
+      // Production - try regular fetch (works if CSP is disabled)
+      console.log('[API] Production mode, trying regular fetch...')
 
-    if (!response.ok) {
-      throw new Error(`Fiskeridirektoratet error: ${response.status}`)
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        })
+
+        console.log('[API] Response status:', response.status)
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        data = await response.json()
+        console.log('[API] Got', data?.features?.length || 0, 'features')
+      } catch (err) {
+        console.error('[API] Fetch failed:', err)
+        alert(`Feil: ${err?.message || err}`)
+        throw err
+      }
     }
 
-    const data = await response.json()
+    console.log('[API] Got data with', data?.features?.length || 0, 'features')
 
     // Transform to our format
     const features = (data.features || []).map(f => {
@@ -177,6 +204,8 @@ export async function fetchLocalitiesFromFiskeridir() {
       features: features
     }
   } catch (error) {
+    console.error('[API] fetchLocalitiesFromFiskeridir FAILED:', error)
+    // Re-throw the error so the UI shows the real problem
     throw error
   }
 }

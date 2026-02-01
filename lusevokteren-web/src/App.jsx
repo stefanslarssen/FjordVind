@@ -7,6 +7,17 @@ import ProtectedRoute from './components/ProtectedRoute'
 import OfflineIndicator from './components/OfflineIndicator'
 import HamburgerButton from './components/HamburgerButton'
 import MobileOverlay from './components/MobileOverlay'
+import OnboardingWizard from './components/OnboardingWizard'
+import { supabase } from './services/supabase'
+import { isNative, initializeNativeFeatures, setupBackButtonHandler } from './utils/capacitor'
+
+// Check if running in Electron
+const isElectron = window.electronAPI?.isElectron || false
+
+// Initialize native features on app load
+if (isNative) {
+  initializeNativeFeatures()
+}
 
 // Lazy-loadede sider for mindre bundle-størrelse
 const OversiktPage = lazy(() => import('./pages/OversiktPage'))
@@ -54,11 +65,42 @@ function PageLoader() {
   )
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+// Removed API_URL - now using Supabase directly
+
+// Wrapper for onboarding - vises kun for nye brukere
+function OnboardingWrapper({ children }) {
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true)
+  const { user } = useAuth()
+
+  useEffect(() => {
+    // Sjekk om bruker har fullført onboarding
+    const onboardingComplete = localStorage.getItem('fjordvind_onboarding_complete')
+    if (!onboardingComplete && user) {
+      setShowOnboarding(true)
+    }
+    setCheckingOnboarding(false)
+  }, [user])
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('fjordvind_onboarding_complete', 'true')
+    setShowOnboarding(false)
+  }
+
+  if (checkingOnboarding) {
+    return null // Kort flash mens vi sjekker
+  }
+
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={handleOnboardingComplete} />
+  }
+
+  return children
+}
 
 function AppLayout() {
   const [alertCounts, setAlertCounts] = useState({ critical: 0, warning: 0, unread: 0 })
-  const { user, signOut, isAuthenticated, isDemoMode } = useAuth()
+  const { user, signOut, isAuthenticated } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
   const location = useLocation()
@@ -68,6 +110,30 @@ function AppLayout() {
   useEffect(() => {
     closeMenu()
   }, [location.pathname, closeMenu])
+
+  // Handle native back button (Android)
+  useEffect(() => {
+    if (!isNative) return
+
+    const cleanup = setupBackButtonHandler((canGoBack) => {
+      if (isMenuOpen) {
+        closeMenu()
+      } else if (canGoBack) {
+        navigate(-1)
+      }
+    })
+
+    return cleanup
+  }, [navigate, isMenuOpen, closeMenu])
+
+  // Listen for Electron menu navigation
+  useEffect(() => {
+    if (isElectron && window.electronAPI?.onNavigate) {
+      window.electronAPI.onNavigate((route) => {
+        navigate(route)
+      })
+    }
+  }, [navigate])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -79,11 +145,18 @@ function AppLayout() {
 
   async function loadAlertCounts() {
     try {
-      const response = await fetch(`${API_URL}/api/alerts/counts`)
-      if (response.ok) {
-        const data = await response.json()
-        setAlertCounts(data)
-      }
+      const { data, error } = await supabase
+        .from('alerts')
+        .select('severity, is_read')
+        .is('resolved_at', null)
+
+      if (error) throw error
+
+      const critical = data?.filter(a => a.severity === 'CRITICAL').length || 0
+      const warning = data?.filter(a => a.severity === 'WARNING').length || 0
+      const unread = data?.filter(a => !a.is_read).length || 0
+
+      setAlertCounts({ critical, warning, unread })
     } catch (error) {
       console.error('Failed to load alert counts:', error)
     }
@@ -167,17 +240,6 @@ function AppLayout() {
                 }}>
                   {userRole}
                 </span>
-                {isDemoMode && (
-                  <span style={{
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    background: 'rgba(234, 179, 8, 0.2)',
-                    color: '#eab308',
-                    fontSize: '11px'
-                  }}>
-                    demo
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -358,9 +420,11 @@ export default function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <MobileMenuProvider>
-                  <AppLayout />
-                </MobileMenuProvider>
+                <OnboardingWrapper>
+                  <MobileMenuProvider>
+                    <AppLayout />
+                  </MobileMenuProvider>
+                </OnboardingWrapper>
               </ProtectedRoute>
             }
           />

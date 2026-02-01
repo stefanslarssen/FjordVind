@@ -1,5 +1,6 @@
 // FjordVind Service Worker - Offline Support
-const CACHE_NAME = 'fjordvind-cache-v1'
+const CACHE_NAME = 'fjordvind-cache-v2'
+const MAP_TILE_CACHE = 'fjordvind-map-tiles-v1'
 const OFFLINE_DATA_STORE = 'fjordvind-offline-data'
 
 // Filer som skal caches for offline-bruk
@@ -17,6 +18,27 @@ const CACHEABLE_APIS = [
   '/api/alerts'
 ]
 
+// Kartfliser som skal caches (OpenStreetMap og andre tile-providere)
+const MAP_TILE_DOMAINS = [
+  'tile.openstreetmap.org',
+  'a.tile.openstreetmap.org',
+  'b.tile.openstreetmap.org',
+  'c.tile.openstreetmap.org',
+  'tiles.stadiamaps.com',
+  'cartodb-basemaps-a.global.ssl.fastly.net',
+  'cartodb-basemaps-b.global.ssl.fastly.net',
+  'cartodb-basemaps-c.global.ssl.fastly.net'
+]
+
+// Eksterne API-er som skal caches for offline-bruk (geodata)
+const EXTERNAL_CACHEABLE_APIS = [
+  'gis.fiskeridir.no',
+  'barentswatch.no'
+]
+
+// Maks antall kartfliser i cache (for å unngå at cachen blir for stor)
+const MAX_MAP_TILES = 2000
+
 // Installer service worker og cache statiske filer
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,17 +54,49 @@ self.addEventListener('install', (event) => {
 
 // Aktiver og rydd opp gamle caches
 self.addEventListener('activate', (event) => {
+  const currentCaches = [CACHE_NAME, MAP_TILE_CACHE]
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .filter((name) => !currentCaches.includes(name))
+          .map((name) => {
+            console.log('[SW] Sletter gammel cache:', name)
+            return caches.delete(name)
+          })
       )
     })
   )
   self.clients.claim()
 })
+
+// Sjekk om URL er en kartflise
+function isMapTile(url) {
+  return MAP_TILE_DOMAINS.some(domain => url.hostname.includes(domain))
+}
+
+// Sjekk om URL er et eksternt API som kan caches
+function isExternalCacheableApi(url) {
+  return EXTERNAL_CACHEABLE_APIS.some(domain => url.hostname.includes(domain))
+}
+
+// Begrens størrelsen på kartflise-cachen
+async function trimMapTileCache() {
+  try {
+    const cache = await caches.open(MAP_TILE_CACHE)
+    const keys = await cache.keys()
+    if (keys.length > MAX_MAP_TILES) {
+      // Slett de eldste 20% av flisene
+      const toDelete = Math.floor(keys.length * 0.2)
+      for (let i = 0; i < toDelete; i++) {
+        await cache.delete(keys[i])
+      }
+      console.log(`[SW] Trimmet kartflise-cache: slettet ${toDelete} fliser`)
+    }
+  } catch (err) {
+    console.error('[SW] Feil ved trimming av cache:', err)
+  }
+}
 
 // Fetch-handler med network-first strategi for API, cache-first for statiske filer
 self.addEventListener('fetch', (event) => {
@@ -56,6 +110,76 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(handleOfflinePost(request))
       return
     }
+    return
+  }
+
+  // Kartfliser: cache-first med network fallback (viktig for offline!)
+  if (isMapTile(url)) {
+    event.respondWith(
+      caches.open(MAP_TILE_CACHE).then(async (cache) => {
+        const cachedResponse = await cache.match(request)
+        if (cachedResponse) {
+          // Returner cachet flise umiddelbart
+          return cachedResponse
+        }
+
+        // Ikke i cache - hent fra nettverk
+        try {
+          const networkResponse = await fetch(request)
+          if (networkResponse.ok) {
+            // Lagre i cache for offline-bruk
+            cache.put(request, networkResponse.clone())
+            // Trim cache i bakgrunnen
+            trimMapTileCache()
+          }
+          return networkResponse
+        } catch (err) {
+          // Offline og ikke i cache - returner en placeholder
+          console.log('[SW] Kartflise ikke tilgjengelig offline:', url.href)
+          return new Response('', { status: 404 })
+        }
+      })
+    )
+    return
+  }
+
+  // Eksterne API-er (Fiskeridirektoratet, BarentsWatch): network-first med cache fallback
+  if (isExternalCacheableApi(url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            // Cache vellykket API-svar
+            const responseClone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone)
+              console.log('[SW] Cachet geodata API-svar:', url.href)
+            })
+          }
+          return response
+        })
+        .catch(async () => {
+          // Offline - sjekk cache
+          console.log('[SW] Prøver å hente geodata fra cache:', url.href)
+          const cachedResponse = await caches.match(request)
+          if (cachedResponse) {
+            console.log('[SW] Returnerer cachet geodata')
+            return cachedResponse
+          }
+          // Ikke i cache - returner feilmelding
+          return new Response(
+            JSON.stringify({
+              error: 'Offline',
+              offline: true,
+              message: 'Geodata ikke tilgjengelig offline'
+            }),
+            {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          )
+        })
+    )
     return
   }
 

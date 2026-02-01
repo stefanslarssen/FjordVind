@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
+import { fetchLocations } from '../services/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function RapporterPage() {
+  const { getAuthHeader } = useAuth()
   const [reports, setReports] = useState([])
   const [generating, setGenerating] = useState(false)
   const [selectedType, setSelectedType] = useState('')
@@ -23,6 +26,9 @@ export default function RapporterPage() {
   // Filter for report list
   const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+
+  // Server PDF download state
+  const [downloadingServerPdf, setDownloadingServerPdf] = useState(null)
 
   useEffect(() => {
     loadLocations()
@@ -46,11 +52,8 @@ export default function RapporterPage() {
 
   async function loadLocations() {
     try {
-      const res = await fetch(`${API_URL}/api/locations`)
-      if (res.ok) {
-        const data = await res.json()
-        setLocations(data.locations || data || [])
-      }
+      const data = await fetchLocations()
+      setLocations(data)
     } catch (e) {
       console.error('Failed to load locations:', e)
     }
@@ -76,31 +79,29 @@ export default function RapporterPage() {
 
     try {
       let data = {}
-      const dateParams = useCustomDates
-        ? `fromDate=${startDate}&toDate=${endDate}`
-        : `period=${selectedPeriod}`
 
-      if (selectedType === 'lus') {
-        const res = await fetch(`${API_URL}/api/samples?${dateParams}${selectedLocation ? `&locationId=${selectedLocation}` : ''}`)
-        if (res.ok) data = await res.json()
+      // Import Supabase functions dynamically
+      const { fetchLiceCounts, fetchEnvironmentReadings, fetchTreatments, fetchDashboardStats } = await import('../services/supabase')
+
+      if (selectedType === 'lus' || selectedType === 'mattilsynet') {
+        const samples = await fetchLiceCounts({ locationId: selectedLocation || undefined, fromDate: startDate, toDate: endDate })
+        data = { samples }
       } else if (selectedType === 'miljo') {
-        const res = await fetch(`${API_URL}/api/environment?${dateParams}`)
-        if (res.ok) data = await res.json()
+        const readings = await fetchEnvironmentReadings()
+        data = { readings }
       } else if (selectedType === 'behandling') {
-        const res = await fetch(`${API_URL}/api/treatments?${dateParams}`)
-        if (res.ok) data = await res.json()
+        const treatments = await fetchTreatments()
+        data = treatments
       } else if (selectedType === 'foring') {
-        const res = await fetch(`${API_URL}/api/feeding?${dateParams}`)
-        if (res.ok) data = await res.json()
+        data = { feedingLogs: [] } // Feeding not implemented yet
       } else if (selectedType === 'biomasse') {
-        const res = await fetch(`${API_URL}/api/dashboard/overview`)
-        if (res.ok) data = await res.json()
+        data = await fetchDashboardStats()
       } else if (selectedType === 'dodelighet') {
-        const res = await fetch(`${API_URL}/api/mortality?${dateParams}`)
-        if (res.ok) data = await res.json()
+        data = { records: [] } // Mortality not implemented yet
       }
 
       const typeNames = {
+        mattilsynet: 'Mattilsynet-rapport',
         lus: 'Luserapport',
         miljo: 'Miljørapport',
         behandling: 'Behandlingsrapport',
@@ -291,8 +292,68 @@ export default function RapporterPage() {
     localStorage.setItem('fjordvind_reports', JSON.stringify(updatedReports))
   }
 
+  // Download professional PDF from server API
+  async function downloadServerPdf(reportType) {
+    setDownloadingServerPdf(reportType)
+
+    try {
+      const params = new URLSearchParams()
+      if (selectedLocation) params.append('locationId', selectedLocation)
+      if (startDate) params.append('fromDate', startDate)
+      if (endDate) params.append('toDate', endDate)
+
+      const endpoint = reportType === 'mattilsynet'
+        ? '/api/reports/pdf/mattilsynet'
+        : reportType === 'behandling'
+          ? '/api/reports/pdf/treatment'
+          : '/api/reports/pdf/lice'
+
+      const response = await fetch(`${API_URL}${endpoint}?${params}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeader()
+        },
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        throw new Error('Kunne ikke generere rapport')
+      }
+
+      // Download the PDF
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+
+      const filename = reportType === 'mattilsynet'
+        ? `Mattilsynet_Rapport_${new Date().toISOString().split('T')[0]}.pdf`
+        : reportType === 'behandling'
+          ? `Behandlingsrapport_${new Date().toISOString().split('T')[0]}.pdf`
+          : `Luserapport_${new Date().toISOString().split('T')[0]}.pdf`
+
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download server PDF:', error)
+      alert('Kunne ikke laste ned rapport fra server. Prøv klient-generert PDF i stedet.')
+    } finally {
+      setDownloadingServerPdf(null)
+    }
+  }
+
   // SVG Icons for report types
   const icons = {
+    mattilsynet: (color) => (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14,2 14,8 20,8"/>
+        <path d="M9 13h6"/>
+        <path d="M9 17h6"/>
+        <path d="M9 9h1"/>
+      </svg>
+    ),
     lus: (color) => (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
         <ellipse cx="12" cy="12" rx="8" ry="5"/>
@@ -342,6 +403,7 @@ export default function RapporterPage() {
 
   // Report type cards config
   const reportTypeCards = [
+    { id: 'mattilsynet', name: 'Mattilsynet', color: '#dc2626', desc: 'Offisiell ukerapport', official: true },
     { id: 'lus', name: 'Luserapport', color: '#ef4444', desc: 'Lusetellinger og trender' },
     { id: 'miljo', name: 'Miljørapport', color: '#3b82f6', desc: 'Temperatur, oksygen, pH' },
     { id: 'behandling', name: 'Behandling', color: '#8b5cf6', desc: 'Behandlingshistorikk' },
@@ -349,6 +411,211 @@ export default function RapporterPage() {
     { id: 'biomasse', name: 'Biomasse', color: '#f59e0b', desc: 'Vekt og biomasseutvikling' },
     { id: 'dodelighet', name: 'Dødelighet', color: '#6366f1', desc: 'Dødelighetsstatistikk' },
   ]
+
+  // Mattilsynet-spesifikk PDF-generering
+  function downloadMattilsynetPdf(report) {
+    const currentWeek = getWeekNumber(new Date(report.date))
+    const year = new Date(report.date).getFullYear()
+
+    // Forbered data i Mattilsynet-format
+    const liceData = report.data?.samples || report.data || []
+    const locationName = locations.find(l => l.id === selectedLocation)?.name || 'Alle lokaliteter'
+
+    // Beregn statistikk
+    const avgAdultFemale = liceData.length > 0
+      ? (liceData.reduce((sum, s) => sum + (s.adult_female_lice || 0), 0) / liceData.length).toFixed(2)
+      : '0.00'
+    const avgMobile = liceData.length > 0
+      ? (liceData.reduce((sum, s) => sum + (s.mobile_lice || 0), 0) / liceData.length).toFixed(2)
+      : '0.00'
+    const avgStationary = liceData.length > 0
+      ? (liceData.reduce((sum, s) => sum + (s.stationary_lice || 0), 0) / liceData.length).toFixed(2)
+      : '0.00'
+
+    const html = `<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <title>Mattilsynet Ukerapport - Uke \${currentWeek}/\${year}</title>
+  <style>
+    @page { size: A4; margin: 20mm; }
+    body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; color: #000; }
+    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+    .header h1 { font-size: 16pt; margin: 0 0 5px 0; }
+    .header h2 { font-size: 14pt; margin: 0; font-weight: normal; }
+    .meta { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 10pt; }
+    .section { margin-bottom: 20px; }
+    .section h3 { font-size: 12pt; border-bottom: 1px solid #666; padding-bottom: 5px; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+    th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+    th { background: #f0f0f0; font-weight: bold; }
+    .summary-box { background: #f5f5f5; border: 1px solid #000; padding: 15px; margin: 20px 0; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; }
+    .summary-value { font-size: 18pt; font-weight: bold; color: #000; }
+    .summary-label { font-size: 9pt; color: #666; }
+    .status-ok { color: #16a34a; }
+    .status-warning { color: #ca8a04; }
+    .status-danger { color: #dc2626; font-weight: bold; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #666; font-size: 9pt; color: #666; }
+    .signature-line { margin-top: 40px; display: flex; justify-content: space-between; }
+    .signature-box { width: 200px; text-align: center; }
+    .signature-box .line { border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>UKERAPPORT - LAKSELUS</h1>
+    <h2>Rapportering til Mattilsynet iht. forskrift om lakselusbekjempelse</h2>
+  </div>
+
+  <div class="meta">
+    <div>
+      <strong>Lokalitet:</strong> \${locationName}<br>
+      <strong>Organisasjon:</strong> FjordVind AS
+    </div>
+    <div style="text-align: right;">
+      <strong>Uke:</strong> \${currentWeek}/\${year}<br>
+      <strong>Generert:</strong> \${new Date().toLocaleDateString('nb-NO')}
+    </div>
+  </div>
+
+  <div class="summary-box">
+    <h3 style="margin: 0 0 15px 0; border: none;">Oppsummering lusetelling</h3>
+    <div class="summary-grid">
+      <div>
+        <div class="summary-value \${parseFloat(avgAdultFemale) >= 0.5 ? 'status-danger' : parseFloat(avgAdultFemale) >= 0.2 ? 'status-warning' : 'status-ok'}">\${avgAdultFemale}</div>
+        <div class="summary-label">Voksne hunnlus (snitt)</div>
+        <div style="font-size: 8pt; color: #666;">Grense: 0,5 / 0,2 i vår</div>
+      </div>
+      <div>
+        <div class="summary-value">\${avgMobile}</div>
+        <div class="summary-label">Bevegelige lus (snitt)</div>
+      </div>
+      <div>
+        <div class="summary-value">\${avgStationary}</div>
+        <div class="summary-label">Fastsittende lus (snitt)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Detaljerte tellinger</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Dato</th>
+          <th>Merd</th>
+          <th>Antall fisk</th>
+          <th>Voksne hunnlus</th>
+          <th>Bevegelige</th>
+          <th>Fastsittende</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        \${liceData.slice(0, 20).map(s => \`
+          <tr>
+            <td>\${s.date || s.counted_at?.split('T')[0] || '-'}</td>
+            <td>\${s.merd_id || s.cage || '-'}</td>
+            <td>\${s.fish_count || s.fish_counted || '-'}</td>
+            <td class="\${(s.adult_female_lice || 0) >= 0.5 ? 'status-danger' : ''}">\${(s.adult_female_lice || 0).toFixed(2)}</td>
+            <td>\${(s.mobile_lice || 0).toFixed(2)}</td>
+            <td>\${(s.stationary_lice || 0).toFixed(2)}</td>
+            <td class="\${(s.adult_female_lice || 0) >= 0.5 ? 'status-danger' : (s.adult_female_lice || 0) >= 0.2 ? 'status-warning' : 'status-ok'}">
+              \${(s.adult_female_lice || 0) >= 0.5 ? 'OVER GRENSE' : (s.adult_female_lice || 0) >= 0.2 ? 'ADVARSEL' : 'OK'}
+            </td>
+          </tr>
+        \`).join('')}
+        \${liceData.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:#666;">Ingen tellinger registrert</td></tr>' : ''}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h3>Behandlingshistorikk siste 4 uker</h3>
+    <p style="color: #666; font-style: italic;">Se separat behandlingsrapport for detaljer.</p>
+  </div>
+
+  <div class="signature-line">
+    <div class="signature-box">
+      <div class="line">Driftsleder</div>
+    </div>
+    <div class="signature-box">
+      <div class="line">Dato</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Denne rapporten er generert av FjordVind Lusevokteren og oppfyller kravene i forskrift om lakselusbekjempelse (FOR-2012-12-05-1140).</p>
+    <p>Ved spørsmål kontakt: support@fjordvind.no | Rapport-ID: MT-\${Date.now()}</p>
+  </div>
+
+  <script>window.onload = function() { window.print(); }</script>
+</body>
+</html>`
+
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
+  // Mattilsynet Excel-eksport (CSV med spesifikt format)
+  function downloadMattilsynetExcel(report) {
+    const currentWeek = getWeekNumber(new Date(report.date))
+    const year = new Date(report.date).getFullYear()
+    const liceData = report.data?.samples || report.data || []
+    const locationName = locations.find(l => l.id === selectedLocation)?.name || 'Alle lokaliteter'
+
+    // Mattilsynet CSV-format
+    let csv = `MATTILSYNET UKERAPPORT - LAKSELUS\n`
+    csv += `Uke;${currentWeek}\n`
+    csv += `År;${year}\n`
+    csv += `Lokalitet;${locationName}\n`
+    csv += `Generert;${new Date().toLocaleDateString('nb-NO')}\n`
+    csv += `\n`
+    csv += `Dato;Merd;Antall fisk;Voksne hunnlus;Bevegelige lus;Fastsittende lus;Status\n`
+
+    liceData.forEach(s => {
+      const status = (s.adult_female_lice || 0) >= 0.5 ? 'OVER GRENSE' :
+                     (s.adult_female_lice || 0) >= 0.2 ? 'ADVARSEL' : 'OK'
+      csv += `${s.date || s.counted_at?.split('T')[0] || ''};`
+      csv += `${s.merd_id || s.cage || ''};`
+      csv += `${s.fish_count || s.fish_counted || ''};`
+      csv += `${(s.adult_female_lice || 0).toFixed(2)};`
+      csv += `${(s.mobile_lice || 0).toFixed(2)};`
+      csv += `${(s.stationary_lice || 0).toFixed(2)};`
+      csv += `${status}\n`
+    })
+
+    // Legg til oppsummering
+    const avgAdult = liceData.length > 0
+      ? (liceData.reduce((sum, s) => sum + (s.adult_female_lice || 0), 0) / liceData.length).toFixed(2)
+      : '0.00'
+
+    csv += `\n`
+    csv += `OPPSUMMERING\n`
+    csv += `Antall tellinger;${liceData.length}\n`
+    csv += `Snitt voksne hunnlus;${avgAdult}\n`
+    csv += `Status;${parseFloat(avgAdult) >= 0.5 ? 'OVER GRENSE - TILTAK PÅKREVD' : parseFloat(avgAdult) >= 0.2 ? 'ADVARSEL' : 'OK'}\n`
+
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Mattilsynet_Uke${currentWeek}_${year}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Hjelpefunksjon for ukenummer
+  function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+  }
 
   return (
     <div style={{ padding: '0 24px 24px 24px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -815,9 +1082,49 @@ export default function RapporterPage() {
                     </td>
                     <td style={{ padding: '16px' }}>
                       {report.status === 'ready' && (
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          {report.type === 'Mattilsynet' && (
+                            <button
+                              onClick={() => downloadServerPdf('mattilsynet')}
+                              disabled={downloadingServerPdf === 'mattilsynet'}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                                color: 'white',
+                                cursor: downloadingServerPdf === 'mattilsynet' ? 'wait' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                opacity: downloadingServerPdf === 'mattilsynet' ? 0.7 : 1
+                              }}
+                              title="Last ned profesjonell PDF fra server"
+                            >
+                              {downloadingServerPdf === 'mattilsynet' ? '⏳' : '⭐'} Server PDF
+                            </button>
+                          )}
+                          {report.type === 'Behandling' && (
+                            <button
+                              onClick={() => downloadServerPdf('behandling')}
+                              disabled={downloadingServerPdf === 'behandling'}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                                color: 'white',
+                                cursor: downloadingServerPdf === 'behandling' ? 'wait' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                opacity: downloadingServerPdf === 'behandling' ? 0.7 : 1
+                              }}
+                              title="Last ned profesjonell PDF fra server"
+                            >
+                              {downloadingServerPdf === 'behandling' ? '⏳' : '⭐'} Server PDF
+                            </button>
+                          )}
                           <button
-                            onClick={() => downloadPdf(report)}
+                            onClick={() => report.type === 'Mattilsynet' ? downloadMattilsynetPdf(report) : downloadPdf(report)}
                             style={{
                               padding: '8px 12px',
                               borderRadius: '6px',
@@ -829,10 +1136,10 @@ export default function RapporterPage() {
                               fontWeight: '500'
                             }}
                           >
-                            PDF
+                            {report.type === 'Mattilsynet' ? 'Lokal PDF' : 'PDF'}
                           </button>
                           <button
-                            onClick={() => downloadExcel(report)}
+                            onClick={() => report.type === 'Mattilsynet' ? downloadMattilsynetExcel(report) : downloadExcel(report)}
                             style={{
                               padding: '8px 12px',
                               borderRadius: '6px',
@@ -844,7 +1151,7 @@ export default function RapporterPage() {
                               fontWeight: '500'
                             }}
                           >
-                            Excel
+                            {report.type === 'Mattilsynet' ? 'Mattilsynet CSV' : 'Excel'}
                           </button>
                           <button
                             onClick={() => downloadTxt(report)}
