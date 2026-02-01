@@ -41,6 +41,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 const PersonvernPage = lazy(() => import('./pages/PersonvernPage'))
 const VilkarPage = lazy(() => import('./pages/VilkarPage'))
+const PricingPage = lazy(() => import('./pages/PricingPage'))
 
 // Fallback-komponent mens sider laster
 function PageLoader() {
@@ -419,6 +420,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/personvern" element={<PersonvernPage />} />
           <Route path="/vilkar" element={<VilkarPage />} />
+          <Route path="/priser" element={<PricingPage />} />
 
           {/* Protected routes */}
           <Route
