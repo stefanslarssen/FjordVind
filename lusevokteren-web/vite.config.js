@@ -8,6 +8,37 @@ const isElectron = process.env.ELECTRON === 'true'
 export default defineConfig({
   // Use relative paths for Electron file:// protocol
   base: isElectron ? './' : '/',
+  build: {
+    // Optimize chunk splitting
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React libraries
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Charting library (heavy, lazy load)
+          'vendor-recharts': ['recharts'],
+          // Map library (heavy, lazy load)
+          'vendor-leaflet': ['leaflet', 'react-leaflet'],
+          // Supabase client
+          'vendor-supabase': ['@supabase/supabase-js'],
+          // Sentry for error tracking
+          'vendor-sentry': ['@sentry/react']
+        }
+      }
+    },
+    // Increase warning threshold
+    chunkSizeWarningLimit: 600,
+    // Enable source maps for production debugging
+    sourcemap: false,
+    // Minify options
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
+  },
   server: {
     port: 5174,
     strictPort: true,
@@ -61,6 +92,11 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Import custom push notification handler
+        importScripts: ['/sw-push.js'],
+        // Skip waiting to activate new service worker immediately
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache strategier for offline støtte
         runtimeCaching: [
           {
