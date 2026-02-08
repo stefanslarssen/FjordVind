@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from './DashboardScreen';
-import DodlighetScreen from './DodlighetScreen';
+import NyTellingScreen from './NyTellingScreen';
 import DodlighetOversiktScreen from './DodlighetOversiktScreen';
 
 const Stack = createNativeStackNavigator();
@@ -34,7 +34,7 @@ function MainTabs() {
         name="DodlighetOversikt"
         component={DodlighetOversiktScreen}
         options={{
-          title: 'Dodlighet',
+          title: 'Oversikt',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="stats-chart-outline" size={size} color={color} />
           ),
@@ -54,7 +54,7 @@ export default function App() {
         }}
       >
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Dodlighet" component={DodlighetScreen} options={{ title: 'Registrer Dodlighet' }} />
+        <Stack.Screen name="NyTelling" component={NyTellingScreen} options={{ title: 'Ny telling' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
