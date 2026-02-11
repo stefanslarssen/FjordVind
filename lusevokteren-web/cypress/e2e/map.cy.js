@@ -1,14 +1,13 @@
 // E2E Tests: Map View
 describe('Map', () => {
   beforeEach(() => {
-    cy.window().then((win) => {
-      win.localStorage.setItem('auth_token', 'demo_token_admin')
-    })
+    cy.setDemoAuth('admin')
   })
 
   describe('Map Page', () => {
     it('should load map page', () => {
       cy.visit('/kart')
+      cy.waitForPageReady()
       cy.url().should('include', '/kart')
     })
 

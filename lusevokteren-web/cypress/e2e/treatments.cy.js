@@ -1,9 +1,7 @@
 // E2E Tests: Treatments (Behandlinger)
 describe('Treatments / Behandlinger', () => {
   beforeEach(() => {
-    cy.window().then((win) => {
-      win.localStorage.setItem('auth_token', 'demo_token_admin')
-    })
+    cy.setDemoAuth('admin')
   })
 
   describe('Treatments Page', () => {
@@ -36,9 +34,7 @@ describe('Treatments / Behandlinger', () => {
 
 describe('Alerts / Varsler', () => {
   beforeEach(() => {
-    cy.window().then((win) => {
-      win.localStorage.setItem('auth_token', 'demo_token_admin')
-    })
+    cy.setDemoAuth('admin')
   })
 
   describe('Alerts Page', () => {

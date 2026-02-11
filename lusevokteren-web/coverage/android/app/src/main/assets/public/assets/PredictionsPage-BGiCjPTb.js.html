@@ -1,0 +1,88 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for android/app/src/main/assets/public/assets/PredictionsPage-BGiCjPTb.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../../../index.html">All files</a> / <a href="index.html">android/app/src/main/assets/public/assets</a> PredictionsPage-BGiCjPTb.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >import{r as o,j as e}from"./index-Cv4P48Md.js";const s="http://localhost:3000";function W(){var y,u;const[a,j]=o.useState([]),[i,v]=o.useState(null),[p,S]=o.useState([]),[k,g]=o.useState(!0),[h,c]=o.useState(null),[x,A]=o.useState("all"),[f,T]=o.useState(null);o.useEffect(()=&gt;{b()},[]);async function b(){try{g(!0),c(null);const[t,n,r]=await Promise.all([fetch(`${s}/api/predictions`).catch(()=&gt;null),fetch(`${s}/api/predictions/summary`).catch(()=&gt;null),fetch(`${s}/api/risk-scores`).catch(()=&gt;null)]);if(t!=null&amp;&amp;t.ok){const l=await t.json();j(l.predictions||[])}if(n!=null&amp;&amp;n.ok){const l=await n.json();v(l.sevenDayForecast||null)}if(r!=null&amp;&amp;r.ok){const l=await r.json();S(l.scores||[])}!(t!=null&amp;&amp;t.ok)&amp;&amp;!(n!=null&amp;&amp;n.ok)&amp;&amp;!(r!=null&amp;&amp;r.ok)&amp;&amp;c("Kunne ikke koble til API. Sjekk at serveren kjorer pa "+s)}catch(t){console.error("Failed to load predictions:",t),c("Nettverksfeil: "+t.message)}finally{g(!1)}}const m=x==="all"?a:a.filter(t=&gt;t.riskLevel===x),d=t=&gt;{switch(t){case"CRITICAL":return"#ef4444";case"HIGH":return"#f59e0b";case"MEDIUM":return"#eab308";case"LOW":return"#22c55e";default:return"#6b7280"}},z=t=&gt;{switch(t){case"CRITICAL":return"rgba(239, 68, 68, 0.15)";case"HIGH":return"rgba(245, 158, 11, 0.15)";case"MEDIUM":return"rgba(234, 179, 8, 0.15)";case"LOW":return"rgba(34, 197, 94, 0.15)";default:return"rgba(107, 114, 128, 0.15)"}};return k?e.jsxs("div",{style:{padding:"40px",textAlign:"center",color:"#94a3b8"},children:[e.jsx("div",{style:{fontSize:"18px",marginBottom:"8px"},children:"Laster prediksjoner..."}),e.jsx("div",{style:{fontSize:"14px"},children:"Analyserer data med AI-modeller"})]}):h?e.jsx("div",{style:{padding:"40px",textAlign:"center"},children:e.jsxs("div",{style:{background:"rgba(239, 68, 68, 0.1)",border:"1px solid rgba(239, 68, 68, 0.3)",borderRadius:"12px",padding:"24px",maxWidth:"500px",margin:"0 auto"},children:[e.jsx("div",{style:{fontSize:"18px",fontWeight:600,color:"#ef4444",marginBottom:"8px"},children:"Kunne ikke laste data"}),e.jsx("div",{style:{fontSize:"14px",color:"#94a3b8",marginBottom:"16px"},children:h}),e.jsx("button",{onClick:b,style:{padding:"10px 24px",background:"linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",border:"none",borderRadius:"8px",color:"white",fontWeight:600,cursor:"pointer"},children:"Prov igjen"})]})}):e.jsxs("div",{style:{padding:"0 16px 16px 16px"},children:[e.jsxs("div",{style:{display:"flex",alignItems:"center",gap:"24px",padding:"12px 0",borderBottom:"1px solid var(--border)",marginBottom:"20px"},children:[e.jsxs("h1",{style:{margin:0,fontSize:"20px",display:"flex",alignItems:"center",gap:"12px"},children:["Prediktiv Analyse",e.jsx("span",{style:{background:"linear-gradient(135deg, #8b5cf6, #6366f1)",padding:"4px 12px",borderRadius:"4px",fontSize:"11px",fontWeight:700,color:"white"},children:"AI-DREVET"})]}),e.jsx("span",{style:{fontSize:"13px",color:"var(--muted)"},children:"7-14 dagers prognoser for luseniva basert pa historiske data, temperatur og sesongmonstre"})]}),i&amp;&amp;e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",gap:"16px",marginBottom:"24px"},children:[e.jsxs("div",{style:{background:"linear-gradient(135deg, #1e3a5f 0%, #172554 100%)",borderRadius:"12px",padding:"20px",border:"1px solid rgba(59, 130, 246, 0.3)"},children:[e.jsx("div",{style:{fontSize:"11px",color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:"12px"},children:"Luseprediksjon (7 dager)"}),e.jsx("div",{style:{fontSize:"36px",fontWeight:700,color:i.avgPredictedLice&gt;=.5?"#ef4444":i.avgPredictedLice&gt;=.4?"#f59e0b":"#22c55e",marginBottom:"8px"},children:((y=i.avgPredictedLice)==null?void 0:y.toFixed(2))||"0.00"}),e.jsx("div",{style:{fontSize:"12px",color:"#94a3b8"},children:"Forventet snitt voksne hunnlus"})]}),e.jsxs("div",{style:{background:"linear-gradient(135deg, #1e3a5f 0%, #172554 100%)",borderRadius:"12px",padding:"20px",border:"1px solid rgba(59, 130, 246, 0.3)"},children:[e.jsx("div",{style:{fontSize:"11px",color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:"12px"},children:"Behandlingsbehov"}),e.jsx("div",{style:{fontSize:"36px",fontWeight:700,color:i.treatmentNeededCount&gt;2?"#ef4444":i.treatmentNeededCount&gt;0?"#f59e0b":"#22c55e",marginBottom:"8px"},children:i.treatmentNeededCount||0}),e.jsx("div",{style:{fontSize:"12px",color:"#94a3b8",marginBottom:"8px"},children:"Merder innen 14 dager"}),((u=i.merdsNeedingTreatment)==null?void 0:u.length)&gt;0&amp;&amp;e.jsx("div",{style:{fontSize:"12px",color:"#f59e0b",fontWeight:600},children:i.merdsNeedingTreatment.join(", ")})]}),e.jsxs("div",{style:{background:"linear-gradient(135deg, #1e3a5f 0%, #172554 100%)",borderRadius:"12px",padding:"20px",border:"1px solid rgba(59, 130, 246, 0.3)"},children:[e.jsx("div",{style:{fontSize:"11px",color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:"12px"},children:"Risiko-fordeling"}),e.jsxs("div",{style:{display:"flex",gap:"16px",marginTop:"8px"},children:[e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:"24px",fontWeight:700,color:"#ef4444"},children:i.criticalCount||0}),e.jsx("div",{style:{fontSize:"10px",color:"#94a3b8"},children:"Kritisk"})]}),e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:"24px",fontWeight:700,color:"#f59e0b"},children:i.highCount||0}),e.jsx("div",{style:{fontSize:"10px",color:"#94a3b8"},children:"Hoy"})]}),e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:"24px",fontWeight:700,color:"#eab308"},children:i.mediumCount||0}),e.jsx("div",{style:{fontSize:"10px",color:"#94a3b8"},children:"Medium"})]}),e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:"24px",fontWeight:700,color:"#22c55e"},children:i.lowCount||0}),e.jsx("div",{style:{fontSize:"10px",color:"#94a3b8"},children:"Lav"})]})]})]}),e.jsxs("div",{style:{background:"linear-gradient(135deg, #1e3a5f 0%, #172554 100%)",borderRadius:"12px",padding:"20px",border:"1px solid rgba(59, 130, 246, 0.3)"},children:[e.jsx("div",{style:{fontSize:"11px",color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:"12px"},children:"Sannsynlighet overskridelse"}),e.jsxs("div",{style:{fontSize:"36px",fontWeight:700,color:i.avgProbabilityExceed&gt;=.5?"#ef4444":"#fff",marginBottom:"8px"},children:[((i.avgProbabilityExceed||0)*100).toFixed(0),"%"]}),e.jsx("div",{style:{fontSize:"12px",color:"#94a3b8"},children:"Snitt sannsynlighet for 0.5 grensen"})]})]}),e.jsx("div",{style:{marginBottom:"20px",display:"flex",gap:"10px"},children:["all","CRITICAL","HIGH","MEDIUM","LOW"].map(t=&gt;e.jsx("button",{onClick:()=&gt;A(t),style:{padding:"10px 20px",borderRadius:"8px",border:"none",background:x===t?t==="all"?"linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)":d(t):"#334155",color:"white",cursor:"pointer",fontWeight:600,fontSize:"13px",transition:"all 0.15s"},children:t==="all"?"Alle":t},t))}),e.jsxs("div",{style:{background:"#1e293b",borderRadius:"12px",overflow:"hidden",border:"1px solid #334155",marginBottom:"24px"},children:[e.jsxs("table",{style:{width:"100%",borderCollapse:"collapse"},children:[e.jsx("thead",{children:e.jsxs("tr",{style:{background:"#0f172a"},children:[e.jsx("th",{style:{padding:"16px",textAlign:"left",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"Merd"}),e.jsx("th",{style:{padding:"16px",textAlign:"left",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"Lokalitet"}),e.jsx("th",{style:{padding:"16px",textAlign:"center",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"Na"}),e.jsx("th",{style:{padding:"16px",textAlign:"center",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"7 dager"}),e.jsx("th",{style:{padding:"16px",textAlign:"center",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"Sannsynlighet"}),e.jsx("th",{style:{padding:"16px",textAlign:"center",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"Risiko"}),e.jsx("th",{style:{padding:"16px",textAlign:"center",fontWeight:600,color:"#94a3b8",fontSize:"12px",textTransform:"uppercase",borderBottom:"1px solid #334155"},children:"Anbefaling"})]})}),e.jsx("tbody",{children:m.map(t=&gt;{var n,r;return e.jsxs("tr",{style:{borderBottom:"1px solid #334155",cursor:"pointer",background:f===t.id?"rgba(59, 130, 246, 0.1)":"transparent"},onClick:()=&gt;T(f===t.id?null:t.id),children:[e.jsx("td",{style:{padding:"16px",fontWeight:600,color:"white"},children:t.merdName}),e.jsx("td",{style:{padding:"16px",color:"#94a3b8"},children:t.locality}),e.jsx("td",{style:{padding:"16px",textAlign:"center",color:"white"},children:((n=t.currentLice)==null?void 0:n.toFixed(2))||"-"}),e.jsxs("td",{style:{padding:"16px",textAlign:"center"},children:[e.jsx("span",{style:{fontWeight:700,color:t.predictedLice&gt;=.5?"#ef4444":t.predictedLice&gt;=.4?"#f59e0b":"#22c55e"},children:((r=t.predictedLice)==null?void 0:r.toFixed(2))||"-"}),t.currentLice&amp;&amp;t.predictedLice&amp;&amp;e.jsx("span",{style:{fontSize:"12px",color:t.predictedLice&gt;t.currentLice?"#ef4444":"#22c55e",marginLeft:"6px"},children:t.predictedLice&gt;t.currentLice?"↑":"↓"})]}),e.jsx("td",{style:{padding:"16px",textAlign:"center"},children:e.jsxs("div",{style:{display:"inline-block",padding:"6px 12px",borderRadius:"20px",background:t.probabilityExceedLimit&gt;=.7?"rgba(239, 68, 68, 0.15)":"rgba(148, 163, 184, 0.15)",color:t.probabilityExceedLimit&gt;=.7?"#ef4444":"#94a3b8",fontWeight:600,fontSize:"13px"},children:[((t.probabilityExceedLimit||0)*100).toFixed(0),"%"]})}),e.jsx("td",{style:{padding:"16px",textAlign:"center"},children:e.jsx("span",{style:{padding:"6px 14px",borderRadius:"6px",background:z(t.riskLevel),color:d(t.riskLevel),fontWeight:600,fontSize:"12px"},children:t.riskLevel})}),e.jsx("td",{style:{padding:"16px",textAlign:"center"},children:e.jsxs("span",{style:{padding:"6px 12px",borderRadius:"6px",background:t.recommendedAction==="IMMEDIATE_TREATMENT"?"rgba(239, 68, 68, 0.15)":t.recommendedAction==="SCHEDULE_TREATMENT"?"rgba(245, 158, 11, 0.15)":"rgba(34, 197, 94, 0.15)",color:t.recommendedAction==="IMMEDIATE_TREATMENT"?"#ef4444":t.recommendedAction==="SCHEDULE_TREATMENT"?"#f59e0b":"#22c55e",fontSize:"11px",fontWeight:600},children:[t.recommendedAction==="SCHEDULE_TREATMENT"&amp;&amp;"Planlegg behandling",t.recommendedAction==="IMMEDIATE_TREATMENT"&amp;&amp;"Umiddelbar handling",t.recommendedAction==="MONITOR"&amp;&amp;"Overvak",t.recommendedAction==="NO_ACTION"&amp;&amp;"Ingen handling",!t.recommendedAction&amp;&amp;"-"]})})]},t.id)})})]}),m.length===0&amp;&amp;e.jsx("div",{style:{padding:"40px",textAlign:"center",color:"#94a3b8"},children:a.length===0?"Ingen prediksjoner i databasen. Kjor prediksjonsmodellen for a generere prognoser.":"Ingen prediksjoner funnet for valgt filter"})]}),p.length&gt;0&amp;&amp;e.jsxs("div",{children:[e.jsxs("h2",{style:{fontSize:"18px",fontWeight:600,marginBottom:"16px",display:"flex",alignItems:"center",gap:"8px"},children:["Risikoscore per merd",e.jsx("span",{style:{background:"rgba(99, 102, 241, 0.15)",color:"#818cf8",fontSize:"10px",fontWeight:700,padding:"4px 8px",borderRadius:"4px"},children:"LIVE"})]}),e.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))",gap:"16px"},children:p.map(t=&gt;e.jsxs("div",{style:{background:"#1e293b",b</span></span>orderRadius:"12px",padding:"20px",border:"1px solid #334155",borderLeft:`4px solid ${d(t.riskLevel)}`},children:[e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"},children:[e.jsxs("div",{children:[e.jsx("div",{style:{fontWeight:600,color:"white",marginBottom:"4px"},children:t.merdName}),e.jsx("div",{style:{fontSize:"12px",color:"#94a3b8"},children:t.locality})]}),e.jsx("div",{style:{fontSize:"28px",fontWeight:700,color:d(t.riskLevel)},children:t.overallScore})]}),e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:"8px",fontSize:"11px"},children:[e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",color:"#94a3b8"},children:[e.jsx("span",{children:"Lus"}),e.jsx("span",{style:{color:"white",fontWeight:600},children:t.liceScore||"-"})]}),e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",color:"#94a3b8"},children:[e.jsx("span",{children:"Dodelighet"}),e.jsx("span",{style:{color:"white",fontWeight:600},children:t.mortalityScore||"-"})]}),e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",color:"#94a3b8"},children:[e.jsx("span",{children:"Miljo"}),e.jsx("span",{style:{color:"white",fontWeight:600},children:t.environmentScore||"-"})]}),e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",color:"#94a3b8"},children:[e.jsx("span",{children:"Behandling"}),e.jsx("span",{style:{color:"white",fontWeight:600},children:t.treatmentScore||"-"})]})]}),e.jsx("div",{style:{marginTop:"12px"},children:e.jsx("div",{style:{height:"6px",background:"#0f172a",borderRadius:"3px",overflow:"hidden"},children:e.jsx("div",{style:{height:"100%",width:`${t.overallScore}%`,background:`linear-gradient(90deg, ${d(t.riskLevel)}88, ${d(t.riskLevel)})`,borderRadius:"3px",transition:"width 0.3s ease"}})})})]},t.id))})]})]})}export{W as default};</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-11T16:07:30.331Z
+            </div>
+        <script src="../../../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../../../sorter.js"></script>
+        <script src="../../../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

@@ -1,17 +1,62 @@
 /**
  * BarentsWatch API Service
  * Håndterer autentisering og datahenting fra BarentsWatch Fish Health API
+ *
+ * API Dokumentasjon: https://www.barentswatch.no/minside/api
  */
+
+const logger = require('../utils/logger');
 
 // BarentsWatch credentials (sett disse som miljøvariabler)
 const BARENTSWATCH_CLIENT_ID = process.env.BARENTSWATCH_CLIENT_ID;
 const BARENTSWATCH_CLIENT_SECRET = process.env.BARENTSWATCH_CLIENT_SECRET;
+
+// Mattilsynet grenseverdier
+const LICE_LIMITS = {
+  NORMAL_LIMIT: 0.5,      // Voksne hunnlus per fisk
+  SPRING_LIMIT: 0.2,      // Strengere grense uke 16-21
+  WARNING_PERCENT: 0.6,   // 60% av grensen = varsling
+};
 
 // Cache for access token
 let tokenCache = {
   token: null,
   expiresAt: null
 };
+
+// Cache for lice data (reduces API calls)
+const liceDataCache = {
+  data: null,
+  year: null,
+  week: null,
+  expiresAt: null,
+  CACHE_DURATION_MS: 30 * 60 * 1000 // 30 minutes
+};
+
+/**
+ * Check if credentials are configured
+ */
+function hasCredentials() {
+  return BARENTSWATCH_CLIENT_ID && BARENTSWATCH_CLIENT_SECRET &&
+    BARENTSWATCH_CLIENT_ID !== '' && BARENTSWATCH_CLIENT_SECRET !== '' &&
+    !BARENTSWATCH_CLIENT_ID.includes('@'); // Exclude email format (test credentials)
+}
+
+/**
+ * Check if we're in spring period (stricter limits)
+ */
+function isSpringPeriod() {
+  const now = new Date();
+  const week = getWeekNumber(now);
+  return week >= 16 && week <= 21;
+}
+
+/**
+ * Get current lice limit based on season
+ */
+function getCurrentLiceLimit() {
+  return isSpringPeriod() ? LICE_LIMITS.SPRING_LIMIT : LICE_LIMITS.NORMAL_LIMIT;
+}
 
 /**
  * Hent access token fra BarentsWatch
@@ -22,14 +67,15 @@ async function getAccessToken() {
     return tokenCache.token;
   }
 
-  // TODO: Implementer når du har fått API-nøkler
-  // For nå returnerer vi null og bruker mock data
-  if (!BARENTSWATCH_CLIENT_ID || !BARENTSWATCH_CLIENT_SECRET) {
-    console.warn('BarentsWatch credentials not configured. Using mock data.');
+  // Sjekk om credentials er konfigurert
+  if (!hasCredentials()) {
+    logger.debug('BarentsWatch credentials not configured - using mock data');
     return null;
   }
 
   try {
+    logger.debug('Fetching new BarentsWatch access token');
+
     const response = await fetch('https://id.barentswatch.no/connect/token', {
       method: 'POST',
       headers: {
@@ -44,7 +90,13 @@ async function getAccessToken() {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get access token: ${response.statusText}`);
+      const errorText = await response.text();
+      logger.error('BarentsWatch token request failed', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to get access token: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -53,25 +105,46 @@ async function getAccessToken() {
     tokenCache.token = data.access_token;
     tokenCache.expiresAt = Date.now() + ((data.expires_in - 300) * 1000);
 
+    logger.info('BarentsWatch access token obtained', {
+      expiresIn: data.expires_in + 's'
+    });
+
     return data.access_token;
   } catch (error) {
-    console.error('Error getting BarentsWatch access token:', error);
-    throw error;
+    logger.error('Error getting BarentsWatch access token', { error: error.message });
+    // Clear cache on error
+    tokenCache.token = null;
+    tokenCache.expiresAt = null;
+    return null; // Return null instead of throwing - allows fallback to mock data
   }
 }
 
 /**
  * Hent lokaliteter med lusedata for en spesifikk uke
+ * Med caching for å redusere API-kall
  */
-async function getLocalitiesWithLiceData(year, week) {
+async function getLocalitiesWithLiceData(year, week, forceRefresh = false) {
+  // Check cache first
+  if (!forceRefresh &&
+      liceDataCache.data &&
+      liceDataCache.year === year &&
+      liceDataCache.week === week &&
+      liceDataCache.expiresAt > Date.now()) {
+    logger.debug('Returning cached lice data', { year, week });
+    return liceDataCache.data;
+  }
+
   const token = await getAccessToken();
 
   // Hvis ingen token, returner mock data
   if (!token) {
+    logger.debug('No BarentsWatch token - returning mock data');
     return getMockLocalitiesData();
   }
 
   try {
+    logger.info('Fetching lice data from BarentsWatch', { year, week });
+
     const response = await fetch(
       `https://www.barentswatch.no/bwapi/v2/geodata/fishhealth/locality/${year}/${week}`,
       {
@@ -87,13 +160,23 @@ async function getLocalitiesWithLiceData(year, week) {
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch localities: ${response.statusText}`);
+      if (response.status === 401) {
+        // Token expired - clear cache and retry once
+        tokenCache.token = null;
+        tokenCache.expiresAt = null;
+        logger.warn('BarentsWatch token expired, retrying...');
+        return getLocalitiesWithLiceData(year, week, true);
+      }
+      throw new Error(`Failed to fetch localities: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
 
+    // Get current lice limit for status calculation
+    const liceLimit = getCurrentLiceLimit();
+
     // Transform BarentsWatch format to our format
-    return data.map(loc => ({
+    const localities = data.map(loc => ({
       localityNo: loc.locality?.no,
       name: loc.locality?.name,
       latitude: loc.geometry?.coordinates?.[1],  // GeoJSON: [lng, lat]
@@ -108,21 +191,45 @@ async function getLocalitiesWithLiceData(year, week) {
       hasSalmonoidLicense: loc.hasSalmonoidLicense,
       isOnLand: loc.locality?.isOnLand,
       diseases: loc.diseases || [],  // Sykdomsstatus (ILA, PD, BKD, etc.)
-      status: getStatus(loc.liceReport?.adultFemaleLice?.average),
+      status: getStatus(loc.liceReport?.adultFemaleLice?.average, liceLimit),
+      owner: loc.locality?.owner || loc.innehaver,
+      week: week,
+      year: year,
     }));
+
+    // Cache the result
+    liceDataCache.data = localities;
+    liceDataCache.year = year;
+    liceDataCache.week = week;
+    liceDataCache.expiresAt = Date.now() + liceDataCache.CACHE_DURATION_MS;
+
+    logger.info('BarentsWatch lice data fetched and cached', {
+      count: localities.length,
+      year,
+      week
+    });
+
+    return localities;
   } catch (error) {
-    console.error('Error fetching localities from BarentsWatch:', error);
-    throw error;
+    logger.error('Error fetching localities from BarentsWatch', { error: error.message });
+    // Return mock data as fallback
+    logger.debug('Falling back to mock data');
+    return getMockLocalitiesData();
   }
 }
 
 /**
- * Beregn status basert på lusenivå
+ * Beregn status basert på lusenivå og gjeldende grenseverdi
+ * Mattilsynet grenser: 0.5 (normalt), 0.2 (uke 16-21)
  */
-function getStatus(avgLice) {
+function getStatus(avgLice, limit = null) {
   if (avgLice === null || avgLice === undefined) return 'UNKNOWN';
-  if (avgLice >= 0.5) return 'DANGER';
-  if (avgLice >= 0.2) return 'WARNING';
+
+  const liceLimit = limit || getCurrentLiceLimit();
+  const warningLevel = liceLimit * LICE_LIMITS.WARNING_PERCENT;
+
+  if (avgLice >= liceLimit) return 'DANGER';
+  if (avgLice >= warningLevel) return 'WARNING';
   return 'OK';
 }
 
@@ -511,6 +618,36 @@ async function getLocalityPolygonsFromBarentsWatch(localityNumbers) {
   };
 }
 
+/**
+ * Clear all caches (useful for testing or force refresh)
+ */
+function clearCaches() {
+  tokenCache.token = null;
+  tokenCache.expiresAt = null;
+  liceDataCache.data = null;
+  liceDataCache.year = null;
+  liceDataCache.week = null;
+  liceDataCache.expiresAt = null;
+  logger.info('BarentsWatch caches cleared');
+}
+
+/**
+ * Get cache status for monitoring
+ */
+function getCacheStatus() {
+  return {
+    tokenCached: !!tokenCache.token,
+    tokenExpiresIn: tokenCache.expiresAt ? Math.max(0, Math.round((tokenCache.expiresAt - Date.now()) / 1000)) + 's' : null,
+    liceDataCached: !!liceDataCache.data,
+    liceDataWeek: liceDataCache.week,
+    liceDataYear: liceDataCache.year,
+    liceDataExpiresIn: liceDataCache.expiresAt ? Math.max(0, Math.round((liceDataCache.expiresAt - Date.now()) / 1000)) + 's' : null,
+    hasCredentials: hasCredentials(),
+    isSpringPeriod: isSpringPeriod(),
+    currentLiceLimit: getCurrentLiceLimit()
+  };
+}
+
 module.exports = {
   getAccessToken,
   getLocalitiesWithLiceData,
@@ -521,4 +658,12 @@ module.exports = {
   getLocalityPolygons,
   getLocalityPolygonFromBarentsWatch,
   getLocalityPolygonsFromBarentsWatch,
+  // New exports
+  hasCredentials,
+  isSpringPeriod,
+  getCurrentLiceLimit,
+  getStatus,
+  clearCaches,
+  getCacheStatus,
+  LICE_LIMITS
 };

@@ -65,7 +65,11 @@ services:
     depends_on:
       - api
 
-  # Adminer - Database Management UI (kun for utvikling!)
+  # ============================================================
+  # ADVARSEL: Adminer er kun for UTVIKLING!
+  # BRUK ALDRI i produksjon - gir direkte databasetilgang.
+  # Start med: docker-compose --profile dev up
+  # ============================================================
   adminer:
     image: adminer:latest
     container_name: lusevokteren-adminer
@@ -77,7 +81,7 @@ services:
     depends_on:
       - postgres
     profiles:
-      - dev  # Kun tilgjengelig med: docker-compose --profile dev up
+      - dev  # SIKKERHETSMEKANISME: Kun tilgjengelig med --profile dev
 
 volumes:
   postgres_data:

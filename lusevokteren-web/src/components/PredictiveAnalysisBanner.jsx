@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchPredictions, fetchRiskScores, fetchAlerts } from '../services/supabase'
 
 export default function PredictiveAnalysisBanner({ onPlanTreatment, onSeeDetails }) {
   const [predictionData, setPredictionData] = useState(null)
@@ -14,27 +13,41 @@ export default function PredictiveAnalysisBanner({ onPlanTreatment, onSeeDetails
 
   async function loadData() {
     try {
-      const [predRes, riskRes, alertRes] = await Promise.all([
-        fetch(`${API_URL}/api/predictions/summary`).catch(() => null),
-        fetch(`${API_URL}/api/risk-scores`).catch(() => null),
-        fetch(`${API_URL}/api/alerts?severity=CRITICAL&limit=1`).catch(() => null)
+      const [predictions, riskScores, alerts] = await Promise.all([
+        fetchPredictions().catch(() => []),
+        fetchRiskScores().catch(() => []),
+        fetchAlerts().catch(() => [])
       ])
 
-      if (predRes?.ok) {
-        const pred = await predRes.json()
-        setPredictionData(pred.sevenDayForecast)
+      if (predictions && predictions.length > 0) {
+        // Calculate summary from predictions
+        const avgPredictedLice = predictions.reduce((sum, p) => sum + (p.predicted_lice || 0), 0) / predictions.length
+        const avgProbabilityExceed = predictions.reduce((sum, p) => sum + (p.probability_exceed || 0), 0) / predictions.length
+        const treatmentNeeded = predictions.filter(p => p.treatment_recommended)
+        setPredictionData({
+          avgPredictedLice,
+          avgProbabilityExceed,
+          treatmentNeededCount: treatmentNeeded.length,
+          merdsNeedingTreatment: treatmentNeeded.map(p => p.merds?.navn || 'Merd').slice(0, 2),
+          criticalCount: predictions.filter(p => p.probability_exceed > 0.8).length,
+          highCount: predictions.filter(p => p.probability_exceed > 0.5 && p.probability_exceed <= 0.8).length
+        })
       }
 
-      if (riskRes?.ok) {
-        const risk = await riskRes.json()
-        setRiskData(risk)
+      if (riskScores && riskScores.length > 0) {
+        const avgScore = riskScores.reduce((sum, r) => sum + (r.risk_score || 0), 0) / riskScores.length
+        setRiskData({
+          aggregateRiskScore: Math.round(avgScore),
+          aggregateRiskLevel: avgScore >= 70 ? 'CRITICAL' : avgScore >= 50 ? 'HIGH' : avgScore >= 30 ? 'MODERATE' : 'LOW'
+        })
       }
 
-      if (alertRes?.ok) {
-        const alerts = await alertRes.json()
-        if (alerts.alerts?.length > 0) {
-          setAlertData(alerts.alerts[0])
-        }
+      if (alerts && alerts.length > 0) {
+        const criticalAlert = alerts.find(a => a.severity === 'CRITICAL') || alerts[0]
+        setAlertData({
+          title: criticalAlert.title || 'Varsel',
+          message: criticalAlert.message || criticalAlert.description || ''
+        })
       }
     } catch (error) {
       console.error('Failed to load predictive data:', error)
@@ -43,32 +56,29 @@ export default function PredictiveAnalysisBanner({ onPlanTreatment, onSeeDetails
     }
   }
 
-  // Default values if API data not available
+  // Use API data only - no hardcoded fallback
   const prediction = predictionData || {
-    avgPredictedLice: 0.58,
-    avgProbabilityExceed: 0.78,
-    treatmentNeededCount: 2,
-    merdsNeedingTreatment: ['Merd 4', 'Merd 5'],
-    criticalCount: 1,
-    highCount: 1
+    avgPredictedLice: 0,
+    avgProbabilityExceed: 0,
+    treatmentNeededCount: 0,
+    merdsNeedingTreatment: [],
+    criticalCount: 0,
+    highCount: 0
   }
 
   const risk = riskData || {
-    aggregateRiskScore: 34,
-    aggregateRiskLevel: 'MODERATE'
+    aggregateRiskScore: 0,
+    aggregateRiskLevel: 'LOW'
   }
 
-  const alert = alertData || {
-    title: 'Merd 4 og 5 nærmer seg lusegrensen',
-    message: `Prediksjon viser ${Math.round(prediction.avgProbabilityExceed * 100)}% sannsynlighet for å overskride 0.5 grensen innen 7 dager. Anbefalt handling: Planlegg behandling.`
-  }
+  const alert = alertData || null
 
   const currentDate = new Date()
   const timeString = currentDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
 
-  // Calculate trend (mock data - would come from API)
-  const liceChange = 29 // percent change from current
-  const growthRate = 18 // percent growth forecast
+  // Calculate trend from data
+  const liceChange = 0 // Would come from historical data comparison
+  const growthRate = 0 // Would come from growth data
 
   function getRiskLevelText(score) {
     if (score >= 70) return 'Kritisk'
@@ -84,7 +94,7 @@ export default function PredictiveAnalysisBanner({ onPlanTreatment, onSeeDetails
     return '#10b981'
   }
 
-  const showCriticalAlert = prediction.criticalCount > 0 || prediction.highCount > 0
+  const showCriticalAlert = alert && (prediction.criticalCount > 0 || prediction.highCount > 0)
 
   return (
     <div style={{ padding: '0 24px', marginTop: '16px' }}>
@@ -122,13 +132,13 @@ export default function PredictiveAnalysisBanner({ onPlanTreatment, onSeeDetails
                 fontSize: '16px',
                 marginBottom: '4px'
               }}>
-                KRITISK: {alert.title}
+                KRITISK: {alert?.title || 'Varsel'}
               </div>
               <div style={{
                 color: 'rgba(255, 255, 255, 0.85)',
                 fontSize: '14px'
               }}>
-                {alert.message}
+                {alert?.message || ''}
               </div>
             </div>
           </div>
@@ -308,7 +318,7 @@ export default function PredictiveAnalysisBanner({ onPlanTreatment, onSeeDetails
               fontSize: '12px',
               fontWeight: 600
             }}>
-              {prediction.merdsNeedingTreatment?.join(', ') || 'Merd 4, 5'}
+              {prediction.merdsNeedingTreatment?.join(', ') || '-'}
             </div>
           </div>
 

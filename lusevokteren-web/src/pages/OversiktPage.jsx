@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import {
+  fetchLocations,
+  fetchCages,
+  fetchPredictions,
+  fetchTreatments,
+  fetchRiskScores,
+  fetchAlerts,
+  fetchDashboardStats
+} from '../services/supabase'
 
 export default function OversiktPage() {
   const navigate = useNavigate()
@@ -34,66 +41,49 @@ export default function OversiktPage() {
 
   async function loadAllData() {
     try {
-      const [locRes, predRes, treatRes, riskRes, alertRes, statsRes, monthlyRes, feedRes, trendRes] = await Promise.all([
-        fetch(`${API_URL}/api/locations`).catch(() => null),
-        fetch(`${API_URL}/api/predictions/summary`).catch(() => null),
-        fetch(`${API_URL}/api/treatments/recommendations`).catch(() => null),
-        fetch(`${API_URL}/api/risk-scores`).catch(() => null),
-        fetch(`${API_URL}/api/alerts?severity=CRITICAL&limit=5`).catch(() => null),
-        fetch(`${API_URL}/api/stats`).catch(() => null),
-        fetch(`${API_URL}/api/dashboard/monthly-stats`).catch(() => null),
-        fetch(`${API_URL}/api/dashboard/feed-storage`).catch(() => null),
-        fetch(`${API_URL}/api/stats/lice-trend?days=14`).catch(() => null)
+      const [locs, preds, treats, risks, alertData, statsData] = await Promise.all([
+        fetchLocations().catch(() => []),
+        fetchPredictions().catch(() => []),
+        fetchTreatments().catch(() => ({ recommendations: [] })),
+        fetchRiskScores().catch(() => []),
+        fetchAlerts({ severity: 'CRITICAL', limit: 5 }).catch(() => ({ alerts: [] })),
+        fetchDashboardStats().catch(() => null)
       ])
 
-      if (locRes?.ok) {
-        const locData = await locRes.json()
-        const locs = locData.locations || locData || []
-        setLocations(locs)
-        if (locs.length > 0) {
-          setSelectedLocation(locs[0].name || locs[0].lokalitet)
-        }
+      setLocations(locs)
+      if (locs.length > 0) {
+        setSelectedLocation(locs[0].name || locs[0].id)
       }
 
-      if (predRes?.ok) {
-        const predData = await predRes.json()
-        setPredictions(predData.sevenDayForecast)
+      // Process predictions for display
+      if (preds && preds.length > 0) {
+        const avgPredicted = preds.reduce((sum, p) => sum + (p.predicted_lice || 0), 0) / preds.length
+        const avgProb = preds.reduce((sum, p) => sum + (p.probability_exceed_limit || 0), 0) / preds.length
+        const critical = preds.filter(p => p.risk_level === 'CRITICAL').length
+        const high = preds.filter(p => p.risk_level === 'HIGH').length
+        setPredictions({
+          avgPredictedLice: avgPredicted,
+          avgProbabilityExceed: avgProb,
+          treatmentNeededCount: critical + high,
+          criticalCount: critical,
+          highCount: high
+        })
       }
 
-      if (treatRes?.ok) {
-        const treatData = await treatRes.json()
-        setTreatments(treatData.recommendations || [])
+      setTreatments(treats.recommendations || [])
+
+      // Process risk scores
+      if (risks && risks.length > 0) {
+        const avgScore = risks.reduce((sum, r) => sum + (r.overall_score || 0), 0) / risks.length
+        setRiskScores({
+          aggregateRiskScore: Math.round(avgScore),
+          aggregateRiskLevel: avgScore > 60 ? 'HIGH' : avgScore > 40 ? 'MODERATE' : 'LOW'
+        })
       }
 
-      if (riskRes?.ok) {
-        const riskData = await riskRes.json()
-        setRiskScores(riskData)
-      }
+      setAlerts(alertData.alerts || [])
+      setStats(statsData)
 
-      if (alertRes?.ok) {
-        const alertData = await alertRes.json()
-        setAlerts(alertData.alerts || [])
-      }
-
-      if (statsRes?.ok) {
-        const statsData = await statsRes.json()
-        setStats(statsData)
-      }
-
-      if (monthlyRes?.ok) {
-        const monthlyData = await monthlyRes.json()
-        setMonthlyStats(monthlyData)
-      }
-
-      if (feedRes?.ok) {
-        const feedData = await feedRes.json()
-        setFeedStorageData(feedData)
-      }
-
-      if (trendRes?.ok) {
-        const trendData = await trendRes.json()
-        setLiceTrendData(trendData)
-      }
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -103,11 +93,8 @@ export default function OversiktPage() {
 
   async function loadMerdsForLocation(location) {
     try {
-      const response = await fetch(`${API_URL}/api/dashboard/locality/${encodeURIComponent(location)}`)
-      if (response.ok) {
-        const data = await response.json()
-        setMerds(data.cages || [])
-      }
+      const cages = await fetchCages(location)
+      setMerds(cages || [])
     } catch (error) {
       console.error('Failed to load merds:', error)
     }
@@ -118,25 +105,25 @@ export default function OversiktPage() {
   const dateString = currentDate.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
   const timeString = currentDate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 
-  // Use API data or fallback to defaults
+  // Use API data only - no fallback demo data
   const predictionData = predictions || {
-    avgPredictedLice: 0.58,
-    avgProbabilityExceed: 0.78,
-    treatmentNeededCount: 2,
-    merdsNeedingTreatment: ['Merd 4', 'Merd 5'],
-    criticalCount: 1,
-    highCount: 1
+    avgPredictedLice: 0,
+    avgProbabilityExceed: 0,
+    treatmentNeededCount: 0,
+    merdsNeedingTreatment: [],
+    criticalCount: 0,
+    highCount: 0
   }
 
   const riskData = riskScores || {
-    aggregateRiskScore: 34,
-    aggregateRiskLevel: 'MODERATE'
+    aggregateRiskScore: 0,
+    aggregateRiskLevel: 'LOW'
   }
 
   const statsData = stats || {
-    avgLice: 0.45,
-    totalMerds: merds.length || 7,
-    mortalityRate: 1.25
+    avgLice: 0,
+    totalMerds: merds.length || 0,
+    mortalityRate: 0
   }
 
   const criticalAlert = alerts.length > 0 ? alerts[0] : null
@@ -151,8 +138,8 @@ export default function OversiktPage() {
   }
 
   // Generate chart data from API or use defaults
-  const liceChartData = liceTrendData?.dailyData?.map(d => d.avgLice * 50) || [12, 15, 18, 14, 16, 19, 22, 20, 18, 15, 13, 14, 16, 18]
-  const liceTrend = liceTrendData?.trend || { percent: -12, direction: 'down' }
+  const liceChartData = liceTrendData?.dailyData?.map(d => d.avgLice * 50) || []
+  const liceTrend = liceTrendData?.trend || { percent: 0, direction: 'none' }
 
   // Use monthly stats from API
   const months = monthlyStats?.months || ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
@@ -500,8 +487,8 @@ export default function OversiktPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
                 <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '4px' }}>{t('dashboard.relativeGrowthIndex')}</div>
-                <div style={{ fontSize: '32px', fontWeight: 700 }}>{monthlyStats?.growth?.currentIndex || 100}</div>
-                <div style={{ fontSize: '11px', opacity: 0.8 }}>{(monthlyStats?.growth?.currentIndex || 100) >= 100 ? t('dashboard.goodGrowth') : t('dashboard.belowTarget')}</div>
+                <div style={{ fontSize: '32px', fontWeight: 700 }}>{monthlyStats?.growth?.currentIndex || '-'}</div>
+                <div style={{ fontSize: '11px', opacity: 0.8 }}>{monthlyStats?.growth?.currentIndex ? (monthlyStats.growth.currentIndex >= 100 ? t('dashboard.goodGrowth') : t('dashboard.belowTarget')) : t('common.noData')}</div>
               </div>
             </div>
             <div style={{ position: 'relative', height: '50px', marginBottom: '12px' }}>
@@ -623,13 +610,13 @@ export default function OversiktPage() {
                 {t('dashboard.licePrediction7Days')}
               </div>
               <div style={{ color: predictionData.avgPredictedLice > 0.5 ? '#ef4444' : predictionData.avgPredictedLice > 0.3 ? '#f59e0b' : '#22c55e', fontSize: '36px', fontWeight: 700, marginBottom: '8px' }}>
-                {predictionData.avgPredictedLice?.toFixed(2) || '0.58'}
+                {predictionData.avgPredictedLice?.toFixed(2) || '0'}
               </div>
               <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '4px' }}>
                 {t('dashboard.expectedAvgAdultFemale')}
               </div>
-              <div style={{ color: '#f59e0b', fontSize: '12px', fontWeight: 600 }}>
-                ↑ +29% {t('dashboard.fromToday')}
+              <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 600 }}>
+                -
               </div>
             </div>
 
@@ -644,13 +631,13 @@ export default function OversiktPage() {
                 {t('dashboard.treatmentNeed')}
               </div>
               <div style={{ color: 'var(--text)', fontSize: '36px', fontWeight: 700, marginBottom: '8px' }}>
-                {predictionData.treatmentNeededCount || treatments.length || 2}
+                {predictionData.treatmentNeededCount || treatments.length || 0}
               </div>
               <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '4px' }}>
                 {t('dashboard.cagesWithin14Days')}
               </div>
               <div style={{ color: '#f59e0b', fontSize: '12px', fontWeight: 600 }}>
-                {predictionData.merdsNeedingTreatment?.join(', ') || treatments.map(t => t.merdName).join(', ') || 'Merd 4, 5'}
+                {predictionData.merdsNeedingTreatment?.join(', ') || treatments.map(t => t.merdName).join(', ') || '-'}
               </div>
             </div>
 
@@ -664,14 +651,14 @@ export default function OversiktPage() {
               <div style={{ color: 'var(--muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '12px' }}>
                 {t('dashboard.growthForecast30D')}
               </div>
-              <div style={{ color: '#22c55e', fontSize: '36px', fontWeight: 700, marginBottom: '8px' }}>
-                +18%
+              <div style={{ color: 'var(--muted)', fontSize: '36px', fontWeight: 700, marginBottom: '8px' }}>
+                -
               </div>
               <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '4px' }}>
                 {t('dashboard.expectedBiomassIncrease')}
               </div>
-              <div style={{ color: '#22c55e', fontSize: '12px', fontWeight: 600 }}>
-                ↑ {t('dashboard.goodGrowth')}
+              <div style={{ color: 'var(--muted)', fontSize: '12px', fontWeight: 600 }}>
+                {t('common.noData')}
               </div>
             </div>
 
@@ -686,8 +673,8 @@ export default function OversiktPage() {
                 {t('dashboard.riskScore')}
               </div>
               <div style={{ marginBottom: '8px' }}>
-                <span style={{ color: riskData.aggregateRiskScore >= 70 ? '#ef4444' : riskData.aggregateRiskScore >= 50 ? '#f59e0b' : '#22c55e', fontSize: '36px', fontWeight: 700 }}>
-                  {riskData.aggregateRiskScore || 34}
+                <span style={{ color: riskData.aggregateRiskScore >= 70 ? '#ef4444' : riskData.aggregateRiskScore >= 50 ? '#f59e0b' : 'var(--muted)', fontSize: '36px', fontWeight: 700 }}>
+                  {riskData.aggregateRiskScore || 0}
                 </span>
                 <span style={{ color: 'var(--muted)', fontSize: '18px' }}>/100</span>
               </div>
@@ -734,16 +721,8 @@ export default function OversiktPage() {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(merds.length || 7, 7)}, 1fr)`, gap: '12px' }}>
-            {(merds.length > 0 ? merds : [
-              { id: 1, name: 'Merd 1', welfareScore: 'A', fishCount: 243950, avgWeight: 604, liceLevel: 'OK' },
-              { id: 2, name: 'Merd 2', welfareScore: 'A', fishCount: 244100, avgWeight: 603, liceLevel: 'OK' },
-              { id: 3, name: 'Merd 3', welfareScore: 'A', fishCount: 243700, avgWeight: 605, liceLevel: 'OK' },
-              { id: 4, name: 'Merd 4', welfareScore: 'B', fishCount: 244200, avgWeight: 603, liceLevel: 'WARNING' },
-              { id: 5, name: 'Merd 5', welfareScore: 'B', fishCount: 243500, avgWeight: 605, liceLevel: 'WARNING' },
-              { id: 6, name: 'Merd 6', welfareScore: 'A', fishCount: 244000, avgWeight: 604, liceLevel: 'OK' },
-              { id: 7, name: 'Merd 7', welfareScore: 'A', fishCount: 243800, avgWeight: 604.5, liceLevel: 'OK' },
-            ]).slice(0, 7).map(merd => (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(merds.length || 1, 7)}, 1fr)`, gap: '12px' }}>
+            {merds.length > 0 ? merds.map(merd => (
               <div
                 key={merd.id}
                 style={{
@@ -794,11 +773,11 @@ export default function OversiktPage() {
                 </div>
 
                 <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>
-                  {(merd.fishCount || merd.fish || 240000).toLocaleString()}
+                  {merd.fishCount || merd.fish ? (merd.fishCount || merd.fish).toLocaleString() : '-'}
                 </div>
 
                 <div style={{ color: 'var(--muted)', fontSize: '11px', marginBottom: '8px' }}>
-                  {t('dashboard.fish')} • {merd.avgWeight || merd.weight || 600}g {t('dashboard.avgWeight')}
+                  {t('dashboard.fish')} • {merd.avgWeight || merd.weight ? `${merd.avgWeight || merd.weight}g` : '-'} {t('dashboard.avgWeight')}
                 </div>
 
                 <div style={{
@@ -812,7 +791,11 @@ export default function OversiktPage() {
                   {t('dashboard.liceRisk7d')}
                 </div>
               </div>
-            ))}
+            )) : (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
+                {t('common.noData')} - {t('dashboard.addMerdsToStart')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -860,10 +843,7 @@ export default function OversiktPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(treatments.length > 0 ? treatments : [
-              { merdName: 'Merd 4', currentLice: 0.42, predictedLice: 0.62, recommendedTreatment: 'THERMOLICER', urgency: 'HIGH', urgencyText: 'Innen 5 dager' },
-              { merdName: 'Merd 5', currentLice: 0.38, predictedLice: 0.55, recommendedTreatment: 'HYDROLICER', urgency: 'MEDIUM', urgencyText: 'Innen 10 dager' },
-            ]).map((tr, idx) => (
+            {treatments.length > 0 ? treatments.map((tr, idx) => (
               <div
                 key={idx}
                 style={{
@@ -879,8 +859,8 @@ export default function OversiktPage() {
                 <div style={{ fontWeight: 600, minWidth: '80px' }}>{tr.merdName || tr.merd}</div>
 
                 <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
-                  {t('dashboard.liceLevel')} {tr.currentLice?.toFixed(2) || '0.42'} → {t('dashboard.predicted')}<br />
-                  <span style={{ color: '#f59e0b' }}>{tr.predictedLice?.toFixed(2) || '0.62'}</span> {t('dashboard.inDays').replace('{days}', '7')}
+                  {t('dashboard.liceLevel')} {tr.currentLice?.toFixed(2) || '-'} → {t('dashboard.predicted')}<br />
+                  <span style={{ color: '#f59e0b' }}>{tr.predictedLice?.toFixed(2) || '-'}</span> {t('dashboard.inDays').replace('{days}', '7')}
                 </div>
 
                 <div style={{ color: 'var(--muted)', fontSize: '13px' }}>
@@ -915,7 +895,11 @@ export default function OversiktPage() {
                   {t('dashboard.plan')} →
                 </button>
               </div>
-            ))}
+            )) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
+                {t('dashboard.noTreatmentsNeeded')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -935,17 +919,19 @@ export default function OversiktPage() {
               marginBottom: '20px'
             }}>
               <div style={{ fontSize: '16px', fontWeight: 600 }}>{t('dashboard.liceTrend')}</div>
-              <div style={{
-                color: liceTrend.direction === 'down' ? '#22c55e' : liceTrend.direction === 'up' ? '#ef4444' : '#94a3b8',
-                fontSize: '13px',
-                fontWeight: 600
-              }}>
-                {liceTrend.direction === 'down' ? '↓' : liceTrend.direction === 'up' ? '↑' : '→'} {liceTrend.percent > 0 ? '+' : ''}{liceTrend.percent}% {t('dashboard.last14Days')}
-              </div>
+              {liceChartData.length > 0 && (
+                <div style={{
+                  color: liceTrend.direction === 'down' ? '#22c55e' : liceTrend.direction === 'up' ? '#ef4444' : '#94a3b8',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}>
+                  {liceTrend.direction === 'down' ? '↓' : liceTrend.direction === 'up' ? '↑' : '→'} {liceTrend.percent > 0 ? '+' : ''}{liceTrend.percent}% {t('dashboard.last14Days')}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '120px' }}>
-              {liceChartData.map((value, idx) => (
+              {liceChartData.length > 0 ? liceChartData.map((value, idx) => (
                 <div
                   key={idx}
                   style={{
@@ -956,7 +942,11 @@ export default function OversiktPage() {
                     minHeight: '20px'
                   }}
                 />
-              ))}
+              )) : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+                  {t('common.noData')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -971,20 +961,20 @@ export default function OversiktPage() {
               {t('dashboard.avgLiceLevel')}
             </div>
             <div style={{ color: '#22d3ee', fontSize: '48px', fontWeight: 700, marginBottom: '8px' }}>
-              {statsData.avgLice?.toFixed(2) || '0.45'}
+              {statsData.avgLice?.toFixed(2) || '0'}
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '12px' }}>
               {t('dashboard.adultFemaleLicePerFish')}
             </div>
             <div style={{
-              background: (statsData.avgLice || 0.45) < 0.5 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
-              color: (statsData.avgLice || 0.45) < 0.5 ? '#86efac' : '#fca5a5',
+              background: (statsData.avgLice || 0) < 0.5 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+              color: (statsData.avgLice || 0) < 0.5 ? '#86efac' : '#fca5a5',
               padding: '6px 12px',
               borderRadius: '6px',
               fontSize: '12px',
               display: 'inline-block'
             }}>
-              {(statsData.avgLice || 0.45) < 0.5 ? `✓ ${t('dashboard.belowLimit')}` : `⚠ ${t('dashboard.aboveLimit')}`}
+              {(statsData.avgLice || 0) < 0.5 ? `✓ ${t('dashboard.belowLimit')}` : `⚠ ${t('dashboard.aboveLimit')}`}
             </div>
           </div>
 
@@ -1000,16 +990,18 @@ export default function OversiktPage() {
             </div>
             <div style={{ marginBottom: '8px' }}>
               <span style={{ color: '#f59e0b', fontSize: '48px', fontWeight: 700 }}>
-                {statsData.mortalityRate?.toFixed(2) || '1.25'}
+                {statsData.mortalityRate?.toFixed(2) || '0'}
               </span>
               <span style={{ color: 'var(--muted)', fontSize: '24px' }}>%</span>
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '12px' }}>
               {t('dashboard.lossLast30Days')}
             </div>
-            <div style={{ color: '#ef4444', fontSize: '13px', fontWeight: 600 }}>
-              ↑ +0.3% {t('dashboard.fromLastMonth')}
-            </div>
+            {statsData.mortalityChange !== undefined && (
+              <div style={{ color: statsData.mortalityChange > 0 ? '#ef4444' : '#22c55e', fontSize: '13px', fontWeight: 600 }}>
+                {statsData.mortalityChange > 0 ? '↑' : '↓'} {statsData.mortalityChange > 0 ? '+' : ''}{statsData.mortalityChange}% {t('dashboard.fromLastMonth')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1040,134 +1032,8 @@ export default function OversiktPage() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '20px' }}>
-            {/* Vanntemperatur */}
-            <div style={{
-              background: 'var(--bg)',
-              borderRadius: '10px',
-              padding: '20px',
-              textAlign: 'center',
-              border: '1px solid var(--border)'
-            }}>
-              <div style={{ color: '#22d3ee', fontSize: '28px', fontWeight: 700, marginBottom: '4px' }}>
-                8.2°C
-              </div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>
-                {t('dashboard.waterTemperature')}
-              </div>
-              <div style={{
-                background: 'rgba(34,197,94,0.2)',
-                color: '#86efac',
-                padding: '4px 12px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                display: 'inline-block'
-              }}>
-                {t('dashboard.optimal')}
-              </div>
-            </div>
-
-            {/* Oksygen */}
-            <div style={{
-              background: 'var(--bg)',
-              borderRadius: '10px',
-              padding: '20px',
-              textAlign: 'center',
-              border: '1px solid var(--border)'
-            }}>
-              <div style={{ color: 'var(--text)', fontSize: '28px', fontWeight: 700, marginBottom: '4px' }}>
-                92%
-              </div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>
-                {t('dashboard.oxygen')}
-              </div>
-              <div style={{
-                background: 'rgba(34,197,94,0.2)',
-                color: '#86efac',
-                padding: '4px 12px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                display: 'inline-block'
-              }}>
-                {t('dashboard.optimal')}
-              </div>
-            </div>
-
-            {/* Salinitet */}
-            <div style={{
-              background: 'var(--bg)',
-              borderRadius: '10px',
-              padding: '20px',
-              textAlign: 'center',
-              border: '1px solid var(--border)'
-            }}>
-              <div style={{ color: 'var(--text)', fontSize: '28px', fontWeight: 700, marginBottom: '4px' }}>
-                34.2‰
-              </div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>
-                {t('dashboard.salinity')}
-              </div>
-              <div style={{
-                background: 'rgba(34,197,94,0.2)',
-                color: '#86efac',
-                padding: '4px 12px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                display: 'inline-block'
-              }}>
-                {t('dashboard.optimal')}
-              </div>
-            </div>
-
-            {/* pH Nivå */}
-            <div style={{
-              background: 'var(--bg)',
-              borderRadius: '10px',
-              padding: '20px',
-              textAlign: 'center',
-              border: '1px solid var(--border)'
-            }}>
-              <div style={{ color: 'var(--text)', fontSize: '28px', fontWeight: 700, marginBottom: '4px' }}>
-                7.8
-              </div>
-              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>
-                {t('dashboard.phLevel')}
-              </div>
-              <div style={{
-                background: 'rgba(245,158,11,0.2)',
-                color: '#fcd34d',
-                padding: '4px 12px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                display: 'inline-block'
-              }}>
-                {t('dashboard.low')}
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Stats Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: 'var(--text)', fontSize: '32px', fontWeight: 700 }}>1,951,400</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('dashboard.totalFish')}</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: 'var(--text)', fontSize: '32px', fontWeight: 700 }}>604.01 g</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('dashboard.avgWeightLabel')}</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: 'var(--text)', fontSize: '32px', fontWeight: 700 }}>1,178.95 t</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('dashboard.totalBiomass')}</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#22c55e', fontSize: '32px', fontWeight: 700 }}>82%</div>
-              <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{t('dashboard.mtbUtilization')}</div>
-            </div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
+            {t('common.noData')} - {t('dashboard.connectSensors')}
           </div>
         </div>
       </div>

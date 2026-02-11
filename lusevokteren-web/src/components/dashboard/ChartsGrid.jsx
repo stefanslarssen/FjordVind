@@ -1,12 +1,30 @@
 import { BarChart, Bar, LineChart, Line, ResponsiveContainer } from 'recharts'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function ChartsGrid({ chartData, localityData }) {
-  if (!chartData) return null
+  const { t } = useLanguage()
 
-  const totalFeed = localityData?.cages?.reduce((sum, c) => sum + c.feedStorageKg, 0) || 0
+  if (!chartData || !localityData) {
+    return (
+      <div className="responsive-grid-2">
+        <div style={{
+          background: 'var(--panel)',
+          borderRadius: '8px',
+          padding: '40px',
+          color: 'var(--muted)',
+          textAlign: 'center',
+          gridColumn: '1 / -1'
+        }}>
+          {t('common.noData')}
+        </div>
+      </div>
+    )
+  }
+
+  const totalFeed = localityData?.cages?.reduce((sum, c) => sum + (c.feedStorageKg || 0), 0) || 0
   const feedChartData = localityData?.cages?.map((c, i) => ({
     name: `${i+1}`,
-    feed: c.feedStorageKg / 1000
+    feed: (c.feedStorageKg || 0) / 1000
   })) || []
 
   return (
@@ -25,31 +43,24 @@ export default function ChartsGrid({ chartData, localityData }) {
         }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
-              Lusetelling ↘
-            </div>
-            <div style={{ fontSize: '11px', opacity: 0.8 }}>
-              Minst lus i Merd 2 og 3
+              {t('dashboard.liceCount')}
             </div>
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700 }}>
-            0.45
+            {localityData?.aggregated?.avgAdultFemaleLice?.toFixed(2) || '0'}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={chartData.liceCount}>
-            <Bar dataKey="avgLicePerFish" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '10px',
-          opacity: 0.8,
-          marginTop: '8px'
-        }}>
-          <div>Minst lus i Merd 2 og 3</div>
-          <div>Mest lus i Merd 7 og 10</div>
-        </div>
+        {chartData.liceCount?.length > 0 ? (
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={chartData.liceCount}>
+              <Bar dataKey="avgLicePerFish" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+            {t('common.noData')}
+          </div>
+        )}
       </div>
 
       {/* Mortality */}
@@ -66,31 +77,24 @@ export default function ChartsGrid({ chartData, localityData }) {
         }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
-              Dødelighet ↗
-            </div>
-            <div style={{ fontSize: '11px', opacity: 0.8 }}>
-              Fisk tapt til himmel
+              {t('dashboard.mortality')}
             </div>
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700 }}>
-            {localityData?.aggregated?.avgMortalityRate?.toFixed(2) || '0.00'}
+            {localityData?.aggregated?.avgMortalityRate?.toFixed(2) || '0'}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={chartData.mortality}>
-            <Bar dataKey="rate" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '10px',
-          opacity: 0.8,
-          marginTop: '8px'
-        }}>
-          <div>Minst dødelighet i Merd 1 og 3</div>
-          <div>Mest dødelighet i Merd 7 og 9</div>
-        </div>
+        {chartData.mortality?.length > 0 ? (
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={chartData.mortality}>
+              <Bar dataKey="rate" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+            {t('common.noData')}
+          </div>
+        )}
       </div>
 
       {/* Growth */}
@@ -107,37 +111,30 @@ export default function ChartsGrid({ chartData, localityData }) {
         }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
-              Relativ vekstindeks →
-            </div>
-            <div style={{ fontSize: '11px', opacity: 0.8 }}>
-              Best i august
+              {t('dashboard.relativeGrowthIndex')}
             </div>
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700 }}>
-            121
+            {localityData?.aggregated?.growthIndex || '0'}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={120}>
-          <LineChart data={chartData.growth}>
-            <Line
-              type="monotone"
-              dataKey="index"
-              stroke="rgba(255,255,255,0.9)"
-              strokeWidth={3}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '10px',
-          opacity: 0.8,
-          marginTop: '8px'
-        }}>
-          <div>Best i august</div>
-          <div>Verst i januar</div>
-        </div>
+        {chartData.growth?.length > 0 ? (
+          <ResponsiveContainer width="100%" height={120}>
+            <LineChart data={chartData.growth}>
+              <Line
+                type="monotone"
+                dataKey="index"
+                stroke="rgba(255,255,255,0.9)"
+                strokeWidth={3}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+            {t('common.noData')}
+          </div>
+        )}
       </div>
 
       {/* Feed Storage */}
@@ -154,31 +151,24 @@ export default function ChartsGrid({ chartData, localityData }) {
         }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
-              Fôrlagring
-            </div>
-            <div style={{ fontSize: '11px', opacity: 0.8 }}>
-              Du har nok i 14 dager
+              {t('dashboard.feedStorage')}
             </div>
           </div>
           <div style={{ fontSize: '28px', fontWeight: 700 }}>
-            {(totalFeed / 1000).toFixed(0)}
+            {(totalFeed / 1000).toFixed(0) || '0'}
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={feedChartData}>
-            <Bar dataKey="feed" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '10px',
-          opacity: 0.8,
-          marginTop: '8px'
-        }}>
-          <div>Premium Polar</div>
-          <div>Rapid</div>
-        </div>
+        {feedChartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={feedChartData}>
+              <Bar dataKey="feed" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
+            {t('common.noData')}
+          </div>
+        )}
       </div>
     </div>
   )

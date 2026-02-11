@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchLocations, fetchCages, fetchLiceCounts, createLocation, deleteLocation, createCage, deleteCage } from '../services/supabase'
 
 export default function LocationsPage() {
   const { t, language } = useLanguage()
@@ -15,6 +14,26 @@ export default function LocationsPage() {
   const [loading, setLoading] = useState(true)
   const [companySearch, setCompanySearch] = useState('')
   const [localitySearch, setLocalitySearch] = useState('')
+
+  // Form states
+  const [showLocationForm, setShowLocationForm] = useState(false)
+  const [showCageForm, setShowCageForm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState(null)
+
+  const [locationForm, setLocationForm] = useState({
+    name: '',
+    lokalitetsnummer: '',
+    latitude: '',
+    longitude: '',
+    municipality: '',
+    owner: ''
+  })
+
+  const [cageForm, setCageForm] = useState({
+    name: '',
+    merdId: ''
+  })
 
   useEffect(() => {
     loadData()
@@ -38,19 +57,12 @@ export default function LocationsPage() {
     try {
       setLoading(true)
 
-      // Fetch all localities from BarentsWatch
-      const localitiesResponse = await fetch(`${API_URL}/api/barentswatch/all-localities`)
-      if (localitiesResponse.ok) {
-        const data = await localitiesResponse.json()
-        setAllLocalities(data.localities || [])
-      }
+      // Fetch locations from Supabase
+      const locations = await fetchLocations()
+      setAllLocalities(locations.map(l => ({ name: l.name, id: l.id })))
 
-      // Fetch all companies
-      const companiesResponse = await fetch(`${API_URL}/api/companies`)
-      if (companiesResponse.ok) {
-        const data = await companiesResponse.json()
-        setCompanies(data.companies || [])
-      }
+      // Companies - for now we don't have a companies table, so leave empty
+      setCompanies([])
 
     } catch (e) {
       console.error('Failed to load data:', e)
@@ -60,39 +72,120 @@ export default function LocationsPage() {
   }
 
   async function loadCompanySites(companyName) {
-    try {
-      const encodedName = encodeURIComponent(companyName)
-      const response = await fetch(`${API_URL}/api/companies/${encodedName}/sites`)
-      if (response.ok) {
-        const data = await response.json()
-        setCompanySites(data.siteNumbers || [])
-      }
-    } catch (err) {
-      console.error('Failed to load company sites:', err)
-    }
+    // Not implemented with Supabase yet
+    setCompanySites([])
   }
 
   async function loadLocalityDetails(localityName) {
     try {
       // Fetch cages for this locality
-      const cagesResponse = await fetch(`${API_URL}/api/merds?locationId=${encodeURIComponent(localityName)}`)
-      if (cagesResponse.ok) {
-        const cagesData = await cagesResponse.json()
-        setCages(cagesData)
+      const cagesData = await fetchCages(localityName)
+      const transformedCages = cagesData.map(c => ({
+        id: c.id,
+        name: c.navn,
+        merd_id: c.merd_id
+      }))
+      setCages(transformedCages)
 
-        // Fetch lice counts for each cage
-        const counts = []
-        for (const cage of cagesData) {
-          const countsResponse = await fetch(`${API_URL}/api/lice-counts?merdId=${cage.id}`)
-          if (countsResponse.ok) {
-            const countsData = await countsResponse.json()
-            counts.push(...countsData.map(c => ({ ...c, cageName: cage.name })))
-          }
-        }
-        setLiceCounts(counts)
-      }
+      // Fetch lice counts for this locality
+      const samples = await fetchLiceCounts({ locationId: localityName })
+      const counts = samples.map(s => ({
+        id: s.id,
+        cageName: s.merds?.navn || 'Ukjent',
+        date: s.dato,
+        fish_examined: s.antall_fisk || 0,
+        adult_female_lice: s.voksne_hunnlus || 0,
+        observations: s.fish_observations || []
+      }))
+      setLiceCounts(counts)
+
     } catch (err) {
       console.error('Failed to load locality details:', err)
+    }
+  }
+
+  async function handleCreateLocation(e) {
+    e.preventDefault()
+    setFormError(null)
+
+    if (!locationForm.name.trim()) {
+      setFormError('Navn er pakrevd')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await createLocation({
+        name: locationForm.name.trim(),
+        lokalitetsnummer: locationForm.lokalitetsnummer || null,
+        latitude: locationForm.latitude ? parseFloat(locationForm.latitude) : null,
+        longitude: locationForm.longitude ? parseFloat(locationForm.longitude) : null,
+        municipality: locationForm.municipality || null,
+        owner: locationForm.owner || null
+      })
+
+      setLocationForm({ name: '', lokalitetsnummer: '', latitude: '', longitude: '', municipality: '', owner: '' })
+      setShowLocationForm(false)
+      await loadData()
+    } catch (error) {
+      console.error('Failed to create location:', error)
+      setFormError('Kunne ikke opprette lokasjon: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteLocation(id, name) {
+    if (!confirm(`Er du sikker pa at du vil slette "${name}"? Dette vil ogsa slette alle merder og data knyttet til lokasjonen.`)) return
+
+    try {
+      await deleteLocation(id)
+      await loadData()
+    } catch (error) {
+      console.error('Failed to delete location:', error)
+      alert('Kunne ikke slette lokasjon: ' + error.message)
+    }
+  }
+
+  async function handleCreateCage(e) {
+    e.preventDefault()
+    setFormError(null)
+
+    if (!cageForm.name.trim()) {
+      setFormError('Navn er pakrevd')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const locality = allLocalities.find(l => l.name === selectedLocality)
+      await createCage({
+        name: cageForm.name.trim(),
+        merdId: cageForm.merdId || null,
+        locationName: selectedLocality,
+        locationId: locality?.id || null
+      })
+
+      setCageForm({ name: '', merdId: '' })
+      setShowCageForm(false)
+      await loadLocalityDetails(selectedLocality)
+    } catch (error) {
+      console.error('Failed to create cage:', error)
+      setFormError('Kunne ikke opprette merd: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteCage(id, name) {
+    if (!confirm(`Er du sikker pa at du vil slette "${name}"?`)) return
+
+    try {
+      await deleteCage(id)
+      await loadLocalityDetails(selectedLocality)
+    } catch (error) {
+      console.error('Failed to delete cage:', error)
+      alert('Kunne ikke slette merd: ' + error.message)
     }
   }
 
@@ -165,9 +258,117 @@ export default function LocationsPage() {
           </p>
         </div>
 
+        {/* Add Cage Button and Form */}
+        <div style={{ marginBottom: '24px' }}>
+          <button
+            onClick={() => setShowCageForm(!showCageForm)}
+            style={{
+              background: showCageForm ? '#6b7280' : '#0d9488',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            {showCageForm ? 'Avbryt' : '+ Ny merd'}
+          </button>
+        </div>
+
+        {showCageForm && (
+          <div className="card" style={{ marginBottom: '24px' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '16px' }}>Opprett ny merd</h3>
+
+            {formError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '6px',
+                padding: '12px',
+                marginBottom: '16px',
+                color: '#ef4444',
+                fontSize: '14px'
+              }}>
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateCage}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                    Navn *
+                  </label>
+                  <input
+                    type="text"
+                    value={cageForm.name}
+                    onChange={(e) => setCageForm({ ...cageForm, name: e.target.value })}
+                    placeholder="f.eks. Merd 1"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text)',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                    Merd-ID (valgfritt)
+                  </label>
+                  <input
+                    type="text"
+                    value={cageForm.merdId}
+                    onChange={(e) => setCageForm({ ...cageForm, merdId: e.target.value })}
+                    placeholder="f.eks. M001"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text)',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    background: '#0d9488',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: saving ? 'wait' : 'pointer',
+                    opacity: saving ? 0.6 : 1
+                  }}
+                >
+                  {saving ? 'Oppretter...' : 'Opprett merd'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {cages.length === 0 ? (
           <div className="card">
-            <p style={{ color: 'var(--muted)' }}>{t('locations.noCages')}</p>
+            <p style={{ color: 'var(--muted)' }}>
+              Ingen merder registrert enna. Klikk "+ Ny merd" for a legge til.
+            </p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
@@ -175,7 +376,7 @@ export default function LocationsPage() {
               // Get lice counts for this cage
               const cageCounts = liceCounts.filter(c => c.cageName === cage.name)
               const latestCount = cageCounts.sort((a, b) => new Date(b.date) - new Date(a.date))[0]
-              const avgLice = latestCount?.adult_female_lice / latestCount?.fish_examined || 0
+              const avgLice = (latestCount?.fish_examined > 0) ? (latestCount.adult_female_lice / latestCount.fish_examined) : 0
               const level = getStatusLevel(avgLice)
 
               return (
@@ -187,11 +388,28 @@ export default function LocationsPage() {
                         {cageCounts.length} {t('locations.registeredCounts')}
                       </p>
                     </div>
-                    {latestCount && (
-                      <span className={`badge ${level}`}>
-                        {avgLice.toFixed(3)}
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {latestCount && (
+                        <span className={`badge ${level}`}>
+                          {(avgLice || 0).toFixed(3)}
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCage(cage.id, cage.name) }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                        title="Slett merd"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {latestCount ? (
@@ -199,11 +417,11 @@ export default function LocationsPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
                         <div>
                           <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.fishExamined')}</div>
-                          <div style={{ fontWeight: 600 }}>{latestCount.fish_examined}</div>
+                          <div style={{ fontWeight: 600 }}>{latestCount.fish_examined || 0}</div>
                         </div>
                         <div>
                           <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.adultFemale')}</div>
-                          <div style={{ fontWeight: 600 }}>{latestCount.adult_female_lice}</div>
+                          <div style={{ fontWeight: 600 }}>{latestCount.adult_female_lice || 0}</div>
                         </div>
                         <div>
                           <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.lastCount')}</div>
@@ -229,13 +447,13 @@ export default function LocationsPage() {
                               </thead>
                               <tbody>
                                 {cageCounts.map((count, idx) => {
-                                  const avg = count.adult_female_lice / count.fish_examined
+                                  const avg = count.fish_examined > 0 ? (count.adult_female_lice / count.fish_examined) : 0
                                   const lvl = getStatusLevel(avg)
                                   return (
                                     <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                                       <td style={{ padding: '8px' }}>{new Date(count.date).toLocaleDateString(language === 'en' ? 'en-US' : 'nb-NO')}</td>
-                                      <td style={{ textAlign: 'right', padding: '8px' }}>{count.fish_examined}</td>
-                                      <td style={{ textAlign: 'right', padding: '8px' }}>{count.adult_female_lice}</td>
+                                      <td style={{ textAlign: 'right', padding: '8px' }}>{count.fish_examined || 0}</td>
+                                      <td style={{ textAlign: 'right', padding: '8px' }}>{count.adult_female_lice || 0}</td>
                                       <td style={{ textAlign: 'right', padding: '8px' }}>
                                         <span className={`badge ${lvl}`} style={{ fontSize: 11 }}>
                                           {avg.toFixed(3)}
@@ -269,14 +487,221 @@ export default function LocationsPage() {
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
         gap: '24px',
         padding: '12px 0',
         borderBottom: '1px solid var(--border)',
         marginBottom: '20px'
       }}>
-        <h1 style={{ margin: 0, fontSize: '20px' }}>{t('locations.title')}</h1>
-        <span style={{ fontSize: '13px', color: 'var(--muted)' }}>{t('locations.subtitle')}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <h1 style={{ margin: 0, fontSize: '20px' }}>{t('locations.title')}</h1>
+          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>{t('locations.subtitle')}</span>
+        </div>
+        <button
+          onClick={() => setShowLocationForm(!showLocationForm)}
+          style={{
+            background: showLocationForm ? '#6b7280' : '#0d9488',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          {showLocationForm ? 'Avbryt' : '+ Ny lokasjon'}
+        </button>
       </div>
+
+      {/* Create Location Form */}
+      {showLocationForm && (
+        <div className="card" style={{ marginBottom: '24px' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: '16px' }}>Opprett ny lokasjon</h3>
+
+          {formError && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '6px',
+              padding: '12px',
+              marginBottom: '16px',
+              color: '#ef4444',
+              fontSize: '14px'
+            }}>
+              {formError}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateLocation}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                  Navn *
+                </label>
+                <input
+                  type="text"
+                  value={locationForm.name}
+                  onChange={(e) => setLocationForm({ ...locationForm, name: e.target.value })}
+                  placeholder="f.eks. Nordfjord Vest"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                  Lokalitetsnummer
+                </label>
+                <input
+                  type="text"
+                  value={locationForm.lokalitetsnummer}
+                  onChange={(e) => setLocationForm({ ...locationForm, lokalitetsnummer: e.target.value })}
+                  placeholder="f.eks. 12345"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                  Kommune
+                </label>
+                <input
+                  type="text"
+                  value={locationForm.municipality}
+                  onChange={(e) => setLocationForm({ ...locationForm, municipality: e.target.value })}
+                  placeholder="f.eks. Bergen"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                  Eier/Selskap
+                </label>
+                <input
+                  type="text"
+                  value={locationForm.owner}
+                  onChange={(e) => setLocationForm({ ...locationForm, owner: e.target.value })}
+                  placeholder="f.eks. Nordlaks AS"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                  Breddegrad (lat)
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={locationForm.latitude}
+                  onChange={(e) => setLocationForm({ ...locationForm, latitude: e.target.value })}
+                  placeholder="f.eks. 60.3913"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500' }}>
+                  Lengdegrad (lon)
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={locationForm.longitude}
+                  onChange={(e) => setLocationForm({ ...locationForm, longitude: e.target.value })}
+                  placeholder="f.eks. 5.3221"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  background: '#0d9488',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: saving ? 'wait' : 'pointer',
+                  opacity: saving ? 0.6 : 1
+                }}
+              >
+                {saving ? 'Oppretter...' : 'Opprett lokasjon'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLocationForm(false)}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Avbryt
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Search and filter */}
       <div className="card" style={{ marginBottom: 24 }}>
@@ -397,10 +822,9 @@ export default function LocationsPage() {
 
             return (
               <div
-                key={loc.localityNo}
+                key={loc.id || loc.localityNo}
                 className="card"
-                onClick={() => setSelectedLocality(loc.name)}
-                style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', position: 'relative' }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)'
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
@@ -410,33 +834,59 @@ export default function LocationsPage() {
                   e.currentTarget.style.boxShadow = 'none'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 18 }}>{loc.name}</h3>
-                    <p style={{ color: 'var(--muted)', fontSize: 13, margin: '4px 0 0' }}>
-                      {loc.municipality}
-                    </p>
-                  </div>
-                  <span className={`badge ${level}`}>
-                    {avgLice !== null ? avgLice.toFixed(3) : 'N/A'}
-                  </span>
-                </div>
+                {/* Delete button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteLocation(loc.id, loc.name) }}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    opacity: 0.5,
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
+                  title="Slett lokasjon"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                  </svg>
+                </button>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.status')}</div>
-                    <div style={{ fontWeight: 600 }}>
-                      {loc.isFallow ? `🛑 ${t('locations.fallow')}` : loc.hasReported ? `✅ ${t('locations.reported')}` : `⚠️ ${t('locations.notReported')}`}
+                <div onClick={() => setSelectedLocality(loc.name)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, paddingRight: '24px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 18 }}>{loc.name}</h3>
+                      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '4px 0 0' }}>
+                        {loc.municipality}
+                      </p>
+                    </div>
+                    <span className={`badge ${level}`}>
+                      {avgLice !== null && avgLice !== undefined ? avgLice.toFixed(3) : 'N/A'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.status')}</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {loc.isFallow ? `🛑 ${t('locations.fallow')}` : loc.hasReported ? `✅ ${t('locations.reported')}` : `⚠️ ${t('locations.notReported')}`}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.locationNo')}</div>
+                      <div style={{ fontWeight: 600 }}>{loc.localityNo || loc.id}</div>
                     </div>
                   </div>
-                  <div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>{t('locations.locationNo')}</div>
-                    <div style={{ fontWeight: 600 }}>{loc.localityNo}</div>
-                  </div>
-                </div>
 
-                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--primary)', fontWeight: 500 }}>
-                  {t('locations.clickToSeeCages')}
+                  <div style={{ marginTop: 12, fontSize: 13, color: 'var(--primary)', fontWeight: 500 }}>
+                    {t('locations.clickToSeeCages')}
+                  </div>
                 </div>
               </div>
             )

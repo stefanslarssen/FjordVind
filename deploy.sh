@@ -251,6 +251,7 @@ ssl_setup() {
 
     if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
         log_error "Usage: ./deploy.sh ssl-setup <domain> <email>"
+        log_info "Example: ./deploy.sh ssl-setup lusevokteren.fjordvind.no admin@fjordvind.no"
         exit 1
     fi
 
@@ -260,19 +261,67 @@ ssl_setup() {
     mkdir -p lusevokteren-api/deploy/certbot/conf
     mkdir -p lusevokteren-api/deploy/certbot/www
 
+    # Update nginx config with domain BEFORE getting certificate
+    log_info "Updating nginx configuration..."
+    sed -i "s/your-domain.no/$DOMAIN/g" lusevokteren-api/deploy/nginx.conf
+    sed -i "s/server_name _;/server_name $DOMAIN;/g" lusevokteren-api/deploy/nginx.conf
+
+    # Start nginx for the ACME challenge (HTTP only first)
+    log_info "Starting nginx for ACME challenge..."
+
+    # Create temporary nginx config for initial cert
+    cat > /tmp/nginx-init.conf << 'EOF'
+server {
+    listen 80;
+    server_name _;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 200 'SSL setup in progress...';
+        add_header Content-Type text/plain;
+    }
+}
+EOF
+
+    # Run nginx temporarily for certificate issuance
+    docker run -d --name fjordvind_nginx_init \
+        -p 80:80 \
+        -v /tmp/nginx-init.conf:/etc/nginx/conf.d/default.conf:ro \
+        -v "$(pwd)/lusevokteren-api/deploy/certbot/www:/var/www/certbot:ro" \
+        nginx:alpine
+
+    sleep 3
+
     # Get initial certificate
-    docker run --rm -v "$(pwd)/lusevokteren-api/deploy/certbot/conf:/etc/letsencrypt" \
+    log_info "Requesting SSL certificate from Let's Encrypt..."
+    docker run --rm \
+        -v "$(pwd)/lusevokteren-api/deploy/certbot/conf:/etc/letsencrypt" \
         -v "$(pwd)/lusevokteren-api/deploy/certbot/www:/var/www/certbot" \
         certbot/certbot certonly --webroot \
         --webroot-path=/var/www/certbot \
         --email "$EMAIL" --agree-tos --no-eff-email \
         -d "$DOMAIN"
 
-    # Update nginx config with domain
-    sed -i "s/your-domain.no/$DOMAIN/g" lusevokteren-api/deploy/nginx.conf
+    # Stop temporary nginx
+    docker stop fjordvind_nginx_init && docker rm fjordvind_nginx_init
 
+    # Clean up temp file
+    rm -f /tmp/nginx-init.conf
+
+    log_info ""
+    log_info "============================================"
     log_info "SSL setup complete for $DOMAIN"
-    log_info "Restart nginx to apply: docker-compose restart nginx"
+    log_info "============================================"
+    log_info ""
+    log_info "Next steps:"
+    log_info "1. Update .env with production values"
+    log_info "2. Run: ./deploy.sh deploy-prod"
+    log_info "3. Your site will be available at: https://$DOMAIN"
+    log_info ""
+    log_info "Certificate auto-renewal is configured in docker-compose.prod.yml"
 }
 
 # Main command handler

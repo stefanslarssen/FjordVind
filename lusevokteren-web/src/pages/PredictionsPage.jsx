@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchPredictions, fetchRiskScores } from '../services/supabase'
 
 export default function PredictionsPage() {
   const [predictions, setPredictions] = useState([])
@@ -20,32 +19,60 @@ export default function PredictionsPage() {
       setLoading(true)
       setError(null)
 
-      const [predictionsRes, summaryRes, riskRes] = await Promise.all([
-        fetch(`${API_URL}/api/predictions`).catch(() => null),
-        fetch(`${API_URL}/api/predictions/summary`).catch(() => null),
-        fetch(`${API_URL}/api/risk-scores`).catch(() => null)
+      const [predictionsData, riskData] = await Promise.all([
+        fetchPredictions(),
+        fetchRiskScores()
       ])
 
-      // Handle each response individually - don't fail if one is missing
-      if (predictionsRes?.ok) {
-        const predictionsData = await predictionsRes.json()
-        setPredictions(predictionsData.predictions || [])
+      // Transform predictions
+      const transformedPredictions = (predictionsData || []).map(p => ({
+        id: p.id,
+        merdName: p.merds?.navn || 'Ukjent',
+        locality: p.merds?.lokalitet || 'Ukjent',
+        currentLice: p.current_lice,
+        predictedLice: p.predicted_lice,
+        probabilityExceedLimit: p.probability_exceed_limit,
+        riskLevel: p.risk_level,
+        recommendedAction: p.recommended_action,
+        confidence: p.confidence,
+        targetDate: p.target_date
+      }))
+      setPredictions(transformedPredictions)
+
+      // Calculate summary from predictions
+      if (transformedPredictions.length > 0) {
+        const avgPredictedLice = transformedPredictions.reduce((sum, p) => sum + (p.predictedLice || 0), 0) / transformedPredictions.length
+        const avgProbabilityExceed = transformedPredictions.reduce((sum, p) => sum + (p.probabilityExceedLimit || 0), 0) / transformedPredictions.length
+        const treatmentNeeded = transformedPredictions.filter(p =>
+          p.recommendedAction === 'SCHEDULE_TREATMENT' || p.recommendedAction === 'IMMEDIATE_TREATMENT'
+        )
+
+        setSummary({
+          avgPredictedLice,
+          avgProbabilityExceed,
+          treatmentNeededCount: treatmentNeeded.length,
+          merdsNeedingTreatment: treatmentNeeded.map(p => p.merdName),
+          criticalCount: transformedPredictions.filter(p => p.riskLevel === 'CRITICAL').length,
+          highCount: transformedPredictions.filter(p => p.riskLevel === 'HIGH').length,
+          mediumCount: transformedPredictions.filter(p => p.riskLevel === 'MEDIUM').length,
+          lowCount: transformedPredictions.filter(p => p.riskLevel === 'LOW').length
+        })
       }
 
-      if (summaryRes?.ok) {
-        const summaryData = await summaryRes.json()
-        setSummary(summaryData.sevenDayForecast || null)
-      }
+      // Transform risk scores
+      const transformedRiskScores = (riskData || []).map(s => ({
+        id: s.id,
+        merdName: s.merds?.navn || 'Ukjent',
+        locality: s.merds?.lokalitet || s.locality || 'Ukjent',
+        overallScore: s.overall_score,
+        liceScore: s.lice_score,
+        mortalityScore: s.mortality_score,
+        environmentScore: s.environment_score,
+        treatmentScore: s.treatment_score,
+        riskLevel: s.risk_level
+      }))
+      setRiskScores(transformedRiskScores)
 
-      if (riskRes?.ok) {
-        const riskData = await riskRes.json()
-        setRiskScores(riskData.scores || [])
-      }
-
-      // Only show error if ALL requests failed
-      if (!predictionsRes?.ok && !summaryRes?.ok && !riskRes?.ok) {
-        setError('Kunne ikke koble til API. Sjekk at serveren kjorer pa ' + API_URL)
-      }
     } catch (err) {
       console.error('Failed to load predictions:', err)
       setError('Nettverksfeil: ' + err.message)

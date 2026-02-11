@@ -70,17 +70,27 @@ describe('Authentication', () => {
 
   describe('Logout', () => {
     it('should be able to logout', () => {
-      // First set a token to simulate logged in state
-      cy.window().then((win) => {
-        win.localStorage.setItem('auth_token', 'demo_token_admin')
-      })
+      // First set demo auth state
+      cy.setDemoAuth('admin')
       cy.visit('/oversikt')
+      cy.waitForPageReady()
 
       // Find and click logout button/link
       cy.get('body').then(($body) => {
-        if ($body.find('[data-testid="logout"], button:contains("Logg ut"), a:contains("Logg ut")').length > 0) {
-          cy.get('[data-testid="logout"], button:contains("Logg ut"), a:contains("Logg ut")').first().click()
-          cy.url().should('include', '/login')
+        const logoutSelectors = [
+          '[data-testid="logout"]',
+          'button:contains("Logg ut")',
+          'a:contains("Logg ut")',
+          '[aria-label*="logg ut"]',
+          '[aria-label*="logout"]'
+        ]
+
+        for (const selector of logoutSelectors) {
+          if ($body.find(selector).length > 0) {
+            cy.get(selector).first().click()
+            cy.url().should('include', '/login')
+            break
+          }
         }
       })
     })

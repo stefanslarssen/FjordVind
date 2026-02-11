@@ -139,29 +139,40 @@ export async function fetchLocalitiesFromFiskeridir() {
       }
       data = await response.json()
     } else {
-      // Production - try regular fetch (works if CSP is disabled)
-      console.log('[API] Production mode, trying regular fetch...')
+      // Production (Tauri) - use localhost proxy
+      console.log('[API] Production mode - using localhost proxy...')
+
+      // Koble til lokal dev server som kjører proxy
+      const proxyUrl = 'http://localhost:5174/api/fiskeridir/server/rest/services/Yggdrasil/Akvakulturregisteret/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson&outSR=4326&resultRecordCount=5000'
 
       try {
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          }
-        })
-
-        console.log('[API] Response status:', response.status)
-
-        if (!response.ok) {
+        const response = await fetch(proxyUrl)
+        if (response.ok) {
+          data = await response.json()
+          console.log('[API] Proxy fetch succeeded:', data?.features?.length, 'features')
+        } else {
           throw new Error(`HTTP ${response.status}`)
         }
-
-        data = await response.json()
-        console.log('[API] Got', data?.features?.length || 0, 'features')
       } catch (err) {
-        console.error('[API] Fetch failed:', err)
-        alert(`Feil: ${err?.message || err}`)
-        throw err
+        console.error('[API] Proxy fetch failed:', err)
+
+        // Fallback: Try Tauri invoke
+        try {
+          console.log('[API] Fallback: Tauri invoke...')
+          let invoke
+          if (window.__TAURI__?.core?.invoke) {
+            invoke = window.__TAURI__.core.invoke
+          } else {
+            const mod = await import('@tauri-apps/api/core')
+            invoke = mod.invoke
+          }
+          const jsonText = await invoke('fetch_localities')
+          data = JSON.parse(jsonText)
+          console.log('[API] Tauri invoke succeeded:', data?.features?.length, 'features')
+        } catch (invokeErr) {
+          console.error('[API] All methods failed')
+          throw new Error(`Kunne ikke hente data. Start dev-server med: npm run dev`)
+        }
       }
     }
 

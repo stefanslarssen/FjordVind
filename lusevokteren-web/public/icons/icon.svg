@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e40af"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="url(#bgGrad)"/>
+  <!-- FjordVind Wave Pattern -->
+  <path d="M80 330 L170 180 L260 260 L370 110" stroke="#ffffff" stroke-width="30" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M60 400 L230 400" stroke="#3b82f6" stroke-width="24" fill="none" stroke-linecap="round"/>
+  <path d="M180 450 L440 450" stroke="#60a5fa" stroke-width="18" fill="none" stroke-linecap="round"/>
+</svg>

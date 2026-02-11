@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { useLanguage } from '../contexts/LanguageContext'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchLocations, fetchCages } from '../services/supabase'
 
 /**
  * NaboSammenligningPage - Områdeoversikt og sammenligning med nabooppdrett
@@ -30,36 +29,21 @@ export default function NaboSammenligningPage() {
 
   async function loadLocations() {
     try {
-      const response = await fetch(`${API_URL}/api/locations`)
-      const data = await response.json()
-      setLocations(data)
+      const data = await fetchLocations()
+      setLocations(data.map(l => ({ id: l.id, name: l.name })))
     } catch (error) {
       console.error('Failed to load locations:', error)
-      // Demo data
-      setLocations([
-        { id: 'Nordfjorden', name: 'Nordfjorden' },
-        { id: 'Hardangerfjorden', name: 'Hardangerfjorden' }
-      ])
+      setLocations([])
     }
   }
 
   async function loadComparisonData() {
     setLoading(true)
     try {
-      // Hent egne merder for valgt lokalitet
-      const merdsResponse = await fetch(`${API_URL}/api/merds?locationId=${encodeURIComponent(selectedLocation)}`)
-      const merdsData = await merdsResponse.json()
+      // Hent egne merder for valgt lokalitet fra Supabase
+      const merdsData = await fetchCages(selectedLocation)
 
-      // Finn koordinater for å hente naboer
-      const firstMerd = merdsData.find(m => m.latitude && m.longitude)
-      if (firstMerd) {
-        // Hent nabooppdrett
-        const nearbyResponse = await fetch(
-          `${API_URL}/api/nearby-farms?latitude=${firstMerd.latitude}&longitude=${firstMerd.longitude}&radius=${radius}`
-        )
-        const nearbyData = await nearbyResponse.json()
-        setNearbyFarms(nearbyData)
-
+      if (merdsData.length > 0) {
         // Beregn egen gjennomsnittlig luseverdi
         const avgOwn = merdsData.reduce((sum, m) => sum + (m.avg_adult_female || 0), 0) / merdsData.length
         setOwnData({
@@ -69,18 +53,33 @@ export default function NaboSammenligningPage() {
           merds: merdsData
         })
 
+        // Nabooppdrett er ikke tilgjengelig i standalone modus
+        setNearbyFarms([])
+
         // Generer historiske data for sammenligning
-        generateHistoricalComparison(avgOwn, nearbyData)
+        generateHistoricalComparison(avgOwn, [])
+      } else {
+        // No data - show empty state
+        setOwnData(null)
+        setNearbyFarms([])
+        setHistoricalData([])
       }
     } catch (error) {
       console.error('Failed to load comparison data:', error)
-      // Demo data
-      generateDemoData()
+      // Show empty state on error
+      setOwnData(null)
+      setNearbyFarms([])
+      setHistoricalData([])
     }
     setLoading(false)
   }
 
   function generateHistoricalComparison(ownAvg, neighbors) {
+    if (!ownAvg) {
+      setHistoricalData([])
+      return
+    }
+
     const weeks = []
     const now = new Date()
     const weekLabel = language === 'en' ? 'Week' : 'Uke'
@@ -90,44 +89,20 @@ export default function NaboSammenligningPage() {
       weekDate.setDate(weekDate.getDate() - (i * 7))
       const weekNum = getWeekNumber(weekDate)
 
-      // Simuler variasjoner over tid
-      const variation = (Math.sin(i / 2) * 0.05) + (Math.random() * 0.02 - 0.01)
+      // Calculate neighbor average if available
       const neighborAvg = neighbors.length > 0
         ? neighbors.reduce((sum, n) => sum + (n.avgAdultFemaleLice || 0), 0) / neighbors.length
-        : 0.12
+        : null
 
       weeks.push({
         week: `${weekLabel} ${weekNum}`,
-        egenLokalitet: Math.max(0, (ownAvg || 0.15) + variation).toFixed(2),
-        naboGjennomsnitt: Math.max(0, neighborAvg + variation * 1.2).toFixed(2),
+        egenLokalitet: ownAvg.toFixed(2),
+        naboGjennomsnitt: neighborAvg ? neighborAvg.toFixed(2) : null,
         grense: 0.5
       })
     }
 
     setHistoricalData(weeks)
-  }
-
-  function generateDemoData() {
-    setOwnData({
-      name: selectedLocation || 'Demo Lokalitet',
-      avgLice: 0.35,
-      merdCount: 4,
-      merds: []
-    })
-
-    setNearbyFarms([
-      { name: 'Nabo Oppdrett A', avgAdultFemaleLice: 0.42, distance: 3.2, municipality: 'Fjordvik' },
-      { name: 'Nabo Oppdrett B', avgAdultFemaleLice: 0.28, distance: 5.8, municipality: 'Fjordvik' },
-      { name: 'Nabo Oppdrett C', avgAdultFemaleLice: 0.55, distance: 7.1, municipality: 'Nordberg' },
-      { name: 'Nabo Oppdrett D', avgAdultFemaleLice: 0.18, distance: 8.4, municipality: 'Nordberg' },
-      { name: 'Nabo Oppdrett E', avgAdultFemaleLice: 0.62, distance: 9.2, municipality: 'Sørvik' }
-    ])
-
-    generateHistoricalComparison(0.35, [
-      { avgAdultFemaleLice: 0.42 },
-      { avgAdultFemaleLice: 0.28 },
-      { avgAdultFemaleLice: 0.55 }
-    ])
   }
 
   function getWeekNumber(date) {

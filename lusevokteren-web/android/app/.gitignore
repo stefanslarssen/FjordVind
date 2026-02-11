@@ -1,2 +1,9 @@
 /build/*
 !/build/.npmkeep
+
+# Release signing
+*.keystore
+*.jks
+keystore.properties
+google-services.json
+release.keystore

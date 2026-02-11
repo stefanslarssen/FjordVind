@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import InteractiveMap from '../components/InteractiveMap'
 import { useLanguage } from '../contexts/LanguageContext'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchLocalitiesFromFiskeridir, extractCompanies } from '../services/publicApis'
 
 /**
  * MapPage - Side for kartvisning av oppdrettslokaliteter
@@ -12,75 +11,53 @@ export default function MapPage() {
   const [companies, setCompanies] = useState([])
   const [selectedCompany, setSelectedCompany] = useState('')
   const [locations, setLocations] = useState([])
-  const [allLocations, setAllLocations] = useState([]) // Alle lokaliteter
+  const [allLocations, setAllLocations] = useState([])
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadCompanies()
-    loadAllLocations()
+    loadAllData()
   }, [])
 
   useEffect(() => {
     if (selectedCompany) {
-      loadCompanyLocations(selectedCompany)
+      // Filter locations by company
+      const filtered = allLocations.filter(loc =>
+        loc.owner?.toLowerCase().includes(selectedCompany.toLowerCase())
+      )
+      setLocations(filtered)
     } else {
       setLocations(allLocations)
     }
   }, [selectedCompany, allLocations])
 
-  async function loadCompanies() {
+  async function loadAllData() {
     try {
-      const response = await fetch(`${API_URL}/api/companies`)
-      const data = await response.json()
-      setCompanies(data.companies || [])
-    } catch (error) {
-      console.error('Failed to load companies:', error)
-    }
-  }
+      // Fetch all localities from Fiskeridirektoratet WFS
+      const data = await fetchLocalitiesFromFiskeridir()
 
-  async function loadAllLocations() {
-    try {
-      // Hent ALLE lokaliteter fra WFS (alle oppdrettsanlegg i Norge)
-      const response = await fetch(`${API_URL}/api/locality-boundaries`)
-      const data = await response.json()
+      // Convert to location format for dropdown
+      const allWFSLocations = (data.features || []).map(f => ({
+        id: f.properties.loknr?.toString() || '',
+        name: f.properties.name || 'Ukjent',
+        loknr: f.properties.loknr,
+        owner: f.properties.owner
+      })).filter(loc => loc.id && loc.name)
 
-      // Konverter til location-format for dropdown
-      const allWFSLocations = data.features.map(f => ({
-        id: f.properties.loknr.toString(),
-        name: f.properties.name,
-        loknr: f.properties.loknr
-      }))
-
-      // Sorter alfabetisk
-      allWFSLocations.sort((a, b) => a.name.localeCompare(b.name))
+      // Sort alphabetically
+      allWFSLocations.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 
       setAllLocations(allWFSLocations)
       setLocations(allWFSLocations)
+
+      // Extract companies from locality data
+      const companiesList = extractCompanies(data)
+      setCompanies(companiesList)
+
       setLoading(false)
     } catch (error) {
       console.error('Failed to load locations:', error)
       setLoading(false)
-    }
-  }
-
-  async function loadCompanyLocations(companyName) {
-    try {
-      const response = await fetch(`${API_URL}/api/companies/${encodeURIComponent(companyName)}/sites`)
-      const data = await response.json()
-
-      // Use the sites data which now includes both loknr and name
-      const companySites = data.sites || []
-      const locations = companySites.map(site => ({
-        id: site.loknr.toString(),
-        name: site.name,
-        loknr: site.loknr
-      }))
-
-      setLocations(locations)
-    } catch (error) {
-      console.error('Failed to load company locations:', error)
-      setLocations(allLocations)
     }
   }
 

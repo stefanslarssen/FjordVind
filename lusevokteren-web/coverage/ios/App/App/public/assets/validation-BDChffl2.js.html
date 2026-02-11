@@ -1,0 +1,88 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for ios/App/App/public/assets/validation-BDChffl2.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">ios/App/App/public/assets</a> validation-BDChffl2.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >const o={required:(e,r="Dette feltet")=&gt;e==null||e===""?`${r} er påkrevd`:null,email:e=&gt;e?/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)?null:"Ugyldig e-postadresse":null,phone:e=&gt;{if(!e)return null;const r=e.replace(/\s/g,"");return/^(\+47)?[2-9]\d{7}$/.test(r)?null:"Ugyldig telefonnummer (må være 8 siffer)"},minLength:e=&gt;(r,n="Dette feltet")=&gt;r&amp;&amp;r.length&lt;e?`${n} må være minst ${e} tegn`:null,maxLength:e=&gt;(r,n="Dette feltet")=&gt;r&amp;&amp;r.length&gt;e?`${n} kan ikke være mer enn ${e} tegn`:null,min:e=&gt;(r,n="Verdien")=&gt;{if(r==null||r==="")return null;const t=parseFloat(r);return isNaN(t)||t&lt;e?`${n} må være minst ${e}`:null},max:e=&gt;(r,n="Verdien")=&gt;{if(r==null||r==="")return null;const t=parseFloat(r);return isNaN(t)||t&gt;e?`${n} kan ikke være mer enn ${e}`:null},range:(e,r)=&gt;(n,t="Verdien")=&gt;{if(n==null||n==="")return null;const i=parseFloat(n);return isNaN(i)||i&lt;e||i&gt;r?`${t} må være mellom ${e} og ${r}`:null},integer:(e,r="Verdien")=&gt;e==null||e===""||Number.isInteger(Number(e))?null:`${r} må være et heltall`,positiveInteger:(e,r="Verdien")=&gt;{if(e==null||e==="")return null;const n=parseInt(e);return isNaN(n)||n&lt;0||!Number.isInteger(Number(e))?`${r} må være et positivt heltall`:null},date:(e,r="Dato")=&gt;{if(!e)return null;if(!/^\d{4}-\d{2}-\d{2}$/.test(e))return`${r} må være i format YYYY-MM-DD`;const t=new Date(e);return isNaN(t.getTime())?`${r} er ikke en gyldig dato`:null},notFutureDate:(e,r="Dato")=&gt;{if(!e)return null;const n=new Date(e),t=new Date;return t.setHours(23,59,59,999),n&gt;t?`${r} kan ikke være i fremtiden`:null},liceCount:(e,r="Lusetall")=&gt;{if(e==null||e==="")return null;const n=parseFloat(e);return isNaN(n)||n&lt;0?`${r} kan ikke være negativt`:n&gt;50?`${r} virker urimelig høyt. Vennligst verifiser.`:null},temperature:e=&gt;{if(e==null||e==="")return null;const r=parseFloat(e);return isNaN(r)?"Temperatur må være et tall":r&lt;-2||r&gt;30?"Temperatur må være mellom -2 og 30 grader":null}};function s(e,r,n=""){for(const t of r){const i=t(e,n);if(i)return i}return null}function f(e,r){const n={};let t=!0;for(const[i,l]of Object.entries(r)){const u=s(e[i],l,i);u&amp;&amp;(n[i]=u,t=!1)}return{valid:t,errors:n}}function d(e){if(!e)return"En ukjent feil oppstod";if(e.message==="Failed to fetch")return"Kunne ikke koble til serveren. Sjekk internettforbindelsen.";if(e.error){const r=e.error;return r.errors&amp;&amp;Array.isArray(r.errors)?r.errors.join(". "):r.message||"En feil oppstod"}return typeof e=="string"?e:e.message||"En ukjent feil oppstod"}export{d as f,o as r,f as v};<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-11T16:07:30.331Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

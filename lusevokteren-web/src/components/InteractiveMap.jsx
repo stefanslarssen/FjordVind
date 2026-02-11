@@ -1200,15 +1200,10 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
     } catch (err) {
       console.error('Failed to load locality data:', err)
       setLoadingStatus('')
-      // Sjekk om det er fordi vi er offline
-      if (!navigator.onLine) {
-        setUsingCachedData(true)
-        // Service worker vil returnere cachet data automatisk
-        console.log('Offline - bruker cachet lokalitetsdata')
-      } else {
-        setError('Kunne ikke laste lokalitetsdata. Sjekk internettforbindelsen.')
-        setTimeout(() => setError(null), 5000)
-      }
+      // Vis den faktiske feilmeldingen
+      const errorMsg = err?.message || err?.toString() || 'Ukjent feil'
+      setError(`Feil ved lasting av data: ${errorMsg}`)
+      setTimeout(() => setError(null), 10000)
     }
   }
 
@@ -1527,7 +1522,7 @@ export default function InteractiveMap({ selectedLocation = null, selectedCompan
         scrollWheelZoom={true}
         zoomControl={false}
       >
-        <MapController center={center} targetZoom={null} />
+        {/* MapController kun når bruker velger en lokasjon */}
         <ZoomTracker onZoomChange={setZoom} />
         <ZoomControl position="bottomleft" />
 

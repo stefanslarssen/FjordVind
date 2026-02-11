@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchCages } from '../services/supabase'
 
 /**
  * MapViewWithNeighbors - Kartvisning med nabooppdrett og lusenivå
  *
  * Viser:
  * - Egne merder med koordinater
- * - Nabooppdrett fra BarentsWatch
  * - Fargekoding basert på lusenivå
- * - Avstand til naboer
  */
 export default function MapViewWithNeighbors({ selectedLocation = null }) {
   const [ownCages, setOwnCages] = useState([])
@@ -27,16 +24,17 @@ export default function MapViewWithNeighbors({ selectedLocation = null }) {
     try {
       setLoading(true)
 
-      // Hent egne merder
-      const cagesUrl = selectedLocation
-        ? `${API_URL}/api/merds?locationId=${encodeURIComponent(selectedLocation)}`
-        : `${API_URL}/api/merds`
+      // Hent egne merder fra Supabase
+      const cagesData = await fetchCages(selectedLocation)
 
-      const cagesResponse = await fetch(cagesUrl)
-      if (!cagesResponse.ok) throw new Error('Failed to fetch cages')
-      const cagesData = await cagesResponse.json()
-
-      setOwnCages(cagesData)
+      setOwnCages(cagesData.map(c => ({
+        id: c.id,
+        name: c.navn,
+        cage_name: c.navn,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        avg_adult_female: c.avg_adult_female
+      })))
 
       // Finn senter basert på første merd med koordinater
       const firstCageWithCoords = cagesData.find(c => c.latitude && c.longitude)
@@ -46,19 +44,10 @@ export default function MapViewWithNeighbors({ selectedLocation = null }) {
           lng: parseFloat(firstCageWithCoords.longitude)
         }
         setCenter(newCenter)
-
-        // Hent nabooppdrett rundt dette senteret
-        const nearbyUrl = `${API_URL}/api/nearby-farms?latitude=${newCenter.lat}&longitude=${newCenter.lng}&radius=${radius}`
-        const nearbyResponse = await fetch(nearbyUrl)
-
-        if (nearbyResponse.ok) {
-          const nearbyData = await nearbyResponse.json()
-          setNearbyFarms(nearbyData)
-        } else {
-          console.warn('Could not fetch nearby farms, using only own cages')
-          setNearbyFarms([])
-        }
       }
+
+      // Nabooppdrett er ikke tilgjengelig uten ekstern API
+      setNearbyFarms([])
 
       setLoading(false)
     } catch (err) {

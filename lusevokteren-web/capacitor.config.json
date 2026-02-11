@@ -1,16 +1,19 @@
 {
   "appId": "no.fjordvind.lusevokteren",
-  "appName": "FjordVind",
+  "appName": "Lusevokteren",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "hostname": "lusevokteren.fjordvind.no"
   },
   "ios": {
     "contentInset": "automatic",
-    "preferredContentMode": "mobile"
+    "preferredContentMode": "mobile",
+    "allowsLinkPreview": false
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "backgroundColor": "#0f172a"
   },
   "plugins": {
     "SplashScreen": {
@@ -24,6 +27,9 @@
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#0f172a"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
     }
   }
 }

@@ -1,4 +1,4 @@
-# 🐟 Lusevokteren - Lakseoppdrett Lusetelling System
+~~~~# 🐟 Lusevokteren - Lakseoppdrett Lusetelling System
 
 Komplett system for registrering og overvåking av lakselus i norsk oppdrettsindustri.
 

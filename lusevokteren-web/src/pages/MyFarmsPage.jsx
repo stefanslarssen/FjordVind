@@ -3,8 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import CompanyRegistration from '../components/company/CompanyRegistration'
 import LocalitySearch from '../components/locality/LocalitySearch'
 import UserMapView from '../components/map/UserMapView'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchLocations } from '../services/supabase'
 
 /**
  * MyFarmsPage - Side for a registrere og se egne anlegg
@@ -28,17 +27,25 @@ export default function MyFarmsPage() {
   async function loadData() {
     setLoading(true)
     try {
-      // Sjekk om det finnes et registrert selskap
-      // For na, bruk localStorage for a lagre selskap-id
+      // Sjekk om det finnes et registrert selskap i localStorage
       const storedCompanyId = localStorage.getItem('fjordvind_company_id')
+      const storedLocalities = localStorage.getItem('fjordvind_user_localities')
 
       if (storedCompanyId) {
-        // Hent brukerens lokaliteter
-        const response = await fetch(`${API_URL}/api/user-localities?company_id=${storedCompanyId}`)
-        if (response.ok) {
-          const data = await response.json()
-          setUserLocalities(data.localities || [])
-          setCompany({ id: storedCompanyId })
+        setCompany({ id: storedCompanyId })
+
+        // Hent lokaliteter fra localStorage eller Supabase
+        if (storedLocalities) {
+          setUserLocalities(JSON.parse(storedLocalities))
+        } else {
+          // Hent fra Supabase
+          const locations = await fetchLocations()
+          setUserLocalities(locations.map(l => ({
+            id: l.id,
+            name: l.name,
+            locality_no: l.id,
+            municipality: ''
+          })))
         }
       }
     } catch (error) {

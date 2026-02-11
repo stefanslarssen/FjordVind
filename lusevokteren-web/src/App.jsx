@@ -35,6 +35,7 @@ const InnstillingerPage = lazy(() => import('./pages/InnstillingerPage'))
 const NyTellingPage = lazy(() => import('./pages/NyTellingPage'))
 const NaboSammenligningPage = lazy(() => import('./pages/NaboSammenligningPage'))
 const MyFarmsPage = lazy(() => import('./pages/MyFarmsPage'))
+const DodlighetPage = lazy(() => import('./pages/DodlighetPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const SignupPage = lazy(() => import('./pages/SignupPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
@@ -301,6 +302,10 @@ function AppLayout() {
             {t('nav.historikk')}
           </NavLink>
 
+          <NavLink to="/dodlighet" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={({ isActive }) => isActive ? { borderLeftColor: '#ef4444' } : {}}>
+            Dodlighet
+          </NavLink>
+
           <NavLink to="/innstillinger" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             {t('nav.innstillinger')}
           </NavLink>
@@ -353,6 +358,7 @@ function AppLayout() {
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/treatments" element={<TreatmentsPage />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/dodlighet" element={<DodlighetPage />} />
             <Route path="/locations" element={<LocationsPage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/mine-anlegg" element={<MyFarmsPage />} />

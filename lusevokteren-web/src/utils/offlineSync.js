@@ -168,12 +168,13 @@ export function registerConnectionListeners(onOnline, onOffline) {
   }
 }
 
-// Registrer service worker
+// Registrer service worker (bruker Vite PWA-generert service worker)
 export async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js')
-      console.log('Service Worker registered:', registration.scope)
+      // Vite PWA håndterer registrering automatisk, men vi kan lytte til events
+      const registration = await navigator.serviceWorker.ready
+      console.log('Service Worker ready:', registration.scope)
 
       // Lytt til meldinger fra service worker
       navigator.serviceWorker.addEventListener('message', async (event) => {
@@ -182,6 +183,19 @@ export async function registerServiceWorker() {
         } else if (event.data.type === 'SYNC_START') {
           const apiUrl = localStorage.getItem('apiUrl') || ''
           await syncOfflineData(apiUrl)
+        }
+      })
+
+      // Håndter oppdateringer
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Ny versjon tilgjengelig
+              console.log('Ny versjon tilgjengelig - oppdater siden for å ta i bruk')
+            }
+          })
         }
       })
 

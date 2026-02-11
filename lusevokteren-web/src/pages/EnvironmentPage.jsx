@@ -1,39 +1,253 @@
 import { useState, useEffect } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchEnvironmentReadings, fetchLocations, fetchCages, createEnvironmentReading, deleteEnvironmentReading } from '../services/supabase'
+import { fetchCompleteEnvironmentData, fetchOceanForecast } from '../services/environmentApi'
 
 export default function EnvironmentPage() {
   const [readings, setReadings] = useState([])
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState('all')
+  const [dataSource, setDataSource] = useState('supabase') // 'supabase' or 'public'
+  const [userLocations, setUserLocations] = useState([])
+
+  // Form state
+  const [showForm, setShowForm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState(null)
+  const [cages, setCages] = useState([])
+  const [formData, setFormData] = useState({
+    locality: '',
+    merdId: '',
+    temperature: '',
+    oxygen: '',
+    salinity: '',
+    ph: '',
+    timestamp: new Date().toISOString().slice(0, 16) // datetime-local format
+  })
 
   useEffect(() => {
     loadData()
-    const interval = setInterval(loadData, 30000) // Refresh every 30 seconds
+    loadLocationsForForm()
+    const interval = setInterval(loadData, 60000) // Refresh every 60 seconds
     return () => clearInterval(interval)
   }, [])
 
+  // Load cages when locality changes in form
+  useEffect(() => {
+    if (formData.locality) {
+      loadCagesForLocality(formData.locality)
+    } else {
+      setCages([])
+    }
+  }, [formData.locality])
+
+  async function loadLocationsForForm() {
+    try {
+      const locs = await fetchLocations()
+      setUserLocations(locs)
+    } catch (error) {
+      console.error('Failed to load locations:', error)
+    }
+  }
+
+  async function loadCagesForLocality(locationId) {
+    try {
+      const cagesData = await fetchCages(locationId)
+      setCages(cagesData || [])
+    } catch (error) {
+      console.error('Failed to load cages:', error)
+      setCages([])
+    }
+  }
+
+  async function handleSubmitReading(e) {
+    e.preventDefault()
+    setFormError(null)
+
+    // Validate - at least one measurement required
+    if (!formData.temperature && !formData.oxygen && !formData.salinity && !formData.ph) {
+      setFormError('Minst en maling ma fylles ut')
+      return
+    }
+
+    if (!formData.locality) {
+      setFormError('Velg en lokasjon')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await createEnvironmentReading({
+        locality: formData.locality,
+        merdId: formData.merdId || null,
+        temperature: formData.temperature ? parseFloat(formData.temperature) : null,
+        oxygen: formData.oxygen ? parseFloat(formData.oxygen) : null,
+        salinity: formData.salinity ? parseFloat(formData.salinity) : null,
+        ph: formData.ph ? parseFloat(formData.ph) : null,
+        timestamp: formData.timestamp ? new Date(formData.timestamp).toISOString() : new Date().toISOString()
+      })
+
+      // Reset form and reload data
+      setFormData({
+        locality: '',
+        merdId: '',
+        temperature: '',
+        oxygen: '',
+        salinity: '',
+        ph: '',
+        timestamp: new Date().toISOString().slice(0, 16)
+      })
+      setShowForm(false)
+      await loadData()
+    } catch (error) {
+      console.error('Failed to save reading:', error)
+      setFormError('Kunne ikke lagre maling: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteReading(id) {
+    if (!confirm('Er du sikker pa at du vil slette denne malingen?')) return
+
+    try {
+      await deleteEnvironmentReading(id)
+      await loadData()
+    } catch (error) {
+      console.error('Failed to delete reading:', error)
+    }
+  }
+
   async function loadData() {
     try {
-      const [readingsRes, summaryRes] = await Promise.all([
-        fetch(`${API_URL}/api/environment`),
-        fetch(`${API_URL}/api/environment/summary`)
-      ])
+      // First try to load from Supabase
+      const data = await fetchEnvironmentReadings()
 
-      if (readingsRes.ok) {
-        const data = await readingsRes.json()
-        setReadings(data.readings || [])
-      }
-
-      if (summaryRes.ok) {
-        const data = await summaryRes.json()
-        setSummary(data.last24Hours)
+      if (data && data.length > 0) {
+        // We have data in Supabase
+        setDataSource('supabase')
+        processSupabaseData(data)
+      } else {
+        // No Supabase data - try public APIs
+        setDataSource('public')
+        await loadPublicData()
       }
     } catch (error) {
-      console.error('Failed to load environment data:', error)
+      console.error('Failed to load environment data from Supabase:', error)
+      // Fallback to public APIs
+      setDataSource('public')
+      await loadPublicData()
     } finally {
       setLoading(false)
+    }
+  }
+
+  function processSupabaseData(data) {
+    const transformedReadings = (data || []).map(r => ({
+      id: r.id,
+      merdName: r.merds?.navn || 'Ukjent',
+      locality: r.locality || r.merds?.lokalitet || 'Ukjent',
+      temperature: r.temperature_celsius,
+      oxygenPercent: r.oxygen_percent,
+      salinity: r.salinity_ppt,
+      ph: r.ph,
+      timestamp: r.timestamp,
+      isAnomaly: r.is_anomaly,
+      isEstimate: false
+    }))
+    setReadings(transformedReadings)
+    calculateSummary(transformedReadings)
+  }
+
+  async function loadPublicData() {
+    try {
+      // Load user's locations from Supabase
+      const locations = await fetchLocations()
+      setUserLocations(locations)
+
+      if (locations.length === 0) {
+        // No locations - show some default Norwegian coastal points
+        const defaultLocations = [
+          { id: 'bergen', name: 'Bergen-omradet', lat: 60.39, lon: 5.32 },
+          { id: 'trondheim', name: 'Trondheimsfjorden', lat: 63.43, lon: 10.39 },
+          { id: 'tromso', name: 'Tromso-omradet', lat: 69.65, lon: 18.96 },
+          { id: 'stavanger', name: 'Stavanger-omradet', lat: 58.97, lon: 5.73 }
+        ]
+
+        const readings = await fetchReadingsForLocations(defaultLocations)
+        setReadings(readings)
+        calculateSummary(readings)
+      } else {
+        // Use user's locations (if they have coordinates)
+        const locationsWithCoords = locations.filter(l => l.latitude && l.longitude).map(l => ({
+          id: l.id,
+          name: l.name || l.lokalitetsnavn,
+          lat: l.latitude,
+          lon: l.longitude
+        }))
+
+        if (locationsWithCoords.length > 0) {
+          const readings = await fetchReadingsForLocations(locationsWithCoords)
+          setReadings(readings)
+          calculateSummary(readings)
+        } else {
+          // Locations exist but no coordinates - show empty state
+          setReadings([])
+          setSummary(null)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load public environment data:', error)
+      setReadings([])
+      setSummary(null)
+    }
+  }
+
+  async function fetchReadingsForLocations(locations) {
+    const readings = []
+
+    for (const loc of locations) {
+      try {
+        const envData = await fetchCompleteEnvironmentData(loc.lat, loc.lon, loc.name)
+
+        readings.push({
+          id: loc.id,
+          merdName: '-',
+          locality: envData.locationName,
+          temperature: envData.data.temperature,
+          oxygenPercent: envData.data.oxygen,
+          salinity: envData.data.salinity,
+          ph: envData.data.ph,
+          timestamp: envData.timestamp,
+          isAnomaly: false,
+          isEstimate: envData.data.temperatureEstimated,
+          source: envData.source
+        })
+      } catch (error) {
+        console.error(`Failed to fetch data for ${loc.name}:`, error)
+      }
+    }
+
+    return readings
+  }
+
+  function calculateSummary(transformedReadings) {
+    if (transformedReadings.length > 0) {
+      const temps = transformedReadings.filter(r => r.temperature).map(r => r.temperature)
+      const oxygens = transformedReadings.filter(r => r.oxygenPercent).map(r => r.oxygenPercent)
+      const salinities = transformedReadings.filter(r => r.salinity).map(r => r.salinity)
+      const phs = transformedReadings.filter(r => r.ph).map(r => r.ph)
+
+      setSummary({
+        avgTemperature: temps.length > 0 ? temps.reduce((a, b) => a + b, 0) / temps.length : null,
+        avgOxygen: oxygens.length > 0 ? oxygens.reduce((a, b) => a + b, 0) / oxygens.length : null,
+        avgSalinity: salinities.length > 0 ? salinities.reduce((a, b) => a + b, 0) / salinities.length : null,
+        avgPh: phs.length > 0 ? phs.reduce((a, b) => a + b, 0) / phs.length : null,
+        minOxygen: oxygens.length > 0 ? Math.min(...oxygens) : null,
+        lowOxygenCount: oxygens.filter(o => o < 60).length
+      })
+    } else {
+      setSummary(null)
     }
   }
 
@@ -93,15 +307,21 @@ export default function EnvironmentPage() {
           <h1 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             Miljodata
             <span style={{
-              background: 'var(--primary)',
+              background: dataSource === 'supabase' ? 'var(--primary)' : '#f59e0b',
               padding: '4px 10px',
               borderRadius: '4px',
               fontSize: '11px',
               fontWeight: '600',
               color: 'white'
-            }}>LIVE</span>
+            }}>
+              {dataSource === 'supabase' ? 'LIVE' : 'OFFENTLIG API'}
+            </span>
           </h1>
-          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>Sanntids overvaking av vannkvalitet</span>
+          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
+            {dataSource === 'supabase'
+              ? 'Sanntids overvaking av vannkvalitet'
+              : 'Data fra met.no / Havforskningsinstituttet'}
+          </span>
         </div>
         <select
           value={selectedLocation}
@@ -121,6 +341,290 @@ export default function EnvironmentPage() {
           ))}
         </select>
       </div>
+
+      {/* Info banner when using public data */}
+      {dataSource === 'public' && (
+        <div style={{
+          background: 'rgba(59, 130, 246, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <div style={{ fontSize: '13px', color: 'var(--text)' }}>
+            <strong>Offentlige data:</strong> Temperatur fra met.no Havvarsel API. Oksygen, salinitet og pH er estimater basert pa sesong og breddegrad.
+            For noyaktige malinger, koble til sensorer eller registrer data manuelt.
+          </div>
+        </div>
+      )}
+
+      {/* Add Reading Button */}
+      <div style={{ marginBottom: '20px' }}>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          style={{
+            background: showForm ? '#6b7280' : '#0d9488',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '12px 20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          {showForm ? 'Avbryt' : '+ Registrer maling'}
+        </button>
+      </div>
+
+      {/* Manual Reading Form */}
+      {showForm && (
+        <div className="card" style={{ marginBottom: '24px' }}>
+          <h3 className="card-title">Registrer miljomaling</h3>
+
+          {formError && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '6px',
+              padding: '12px',
+              marginBottom: '16px',
+              color: '#ef4444',
+              fontSize: '14px'
+            }}>
+              {formError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmitReading}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+              {/* Locality */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  Lokasjon *
+                </label>
+                <select
+                  value={formData.locality}
+                  onChange={(e) => setFormData({ ...formData, locality: e.target.value, merdId: '' })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Velg lokasjon</option>
+                  {userLocations.map(loc => (
+                    <option key={loc.id} value={loc.name || loc.lokalitetsnavn}>
+                      {loc.name || loc.lokalitetsnavn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Merd (optional) */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  Merd (valgfritt)
+                </label>
+                <select
+                  value={formData.merdId}
+                  onChange={(e) => setFormData({ ...formData, merdId: e.target.value })}
+                  disabled={!formData.locality}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Alle merder / generell</option>
+                  {cages.map(cage => (
+                    <option key={cage.id} value={cage.id}>
+                      {cage.navn || `Merd ${cage.merd_id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Timestamp */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  Tidspunkt
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.timestamp}
+                  onChange={(e) => setFormData({ ...formData, timestamp: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Temperature */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  Temperatur (°C)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-2"
+                  max="30"
+                  value={formData.temperature}
+                  onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                  placeholder="f.eks. 12.5"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Oxygen */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  Oksygen (%)
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="150"
+                  value={formData.oxygen}
+                  onChange={(e) => setFormData({ ...formData, oxygen: e.target.value })}
+                  placeholder="f.eks. 95"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Salinity */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  Salinitet (ppt)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="50"
+                  value={formData.salinity}
+                  onChange={(e) => setFormData({ ...formData, salinity: e.target.value })}
+                  placeholder="f.eks. 33.5"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* pH */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                  pH
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="6"
+                  max="9"
+                  value={formData.ph}
+                  onChange={(e) => setFormData({ ...formData, ph: e.target.value })}
+                  placeholder="f.eks. 8.1"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  background: '#0d9488',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: saving ? 'wait' : 'pointer',
+                  opacity: saving ? 0.6 : 1
+                }}
+              >
+                {saving ? 'Lagrer...' : 'Lagre maling'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Avbryt
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Summary Cards */}
       {summary && (
@@ -257,6 +761,7 @@ export default function EnvironmentPage() {
                 <th style={{ textAlign: 'center' }}>pH</th>
                 <th style={{ textAlign: 'center' }}>Status</th>
                 <th style={{ textAlign: 'right' }}>Tidspunkt</th>
+                {dataSource === 'supabase' && <th style={{ width: '40px' }}></th>}
               </tr>
             </thead>
             <tbody>
@@ -267,30 +772,36 @@ export default function EnvironmentPage() {
 
                 return (
                   <tr key={reading.id} style={{ background: hasAnomaly ? 'rgba(239, 68, 68, 0.05)' : 'transparent' }}>
-                    <td style={{ fontWeight: '500' }}>{reading.merdName || 'Ukjent'}</td>
+                    <td style={{ fontWeight: '500' }}>{reading.merdName || '-'}</td>
                     <td style={{ color: 'var(--text-secondary)' }}>{reading.locality}</td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ color: getTemperatureStatus(reading.temperature).color, fontWeight: '500' }}>
                         {reading.temperature?.toFixed(1)}°C
+                        {reading.isEstimate && reading.source !== 'met.no' && <span style={{ color: 'var(--muted)', fontSize: '10px' }}> *</span>}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ color: getOxygenStatus(reading.oxygenPercent).color, fontWeight: '500' }}>
                         {reading.oxygenPercent?.toFixed(0)}%
+                        {reading.isEstimate && <span style={{ color: 'var(--muted)', fontSize: '10px' }}> *</span>}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ color: getSalinityStatus(reading.salinity).color, fontWeight: '500' }}>
                         {reading.salinity?.toFixed(1)}
+                        {reading.isEstimate && <span style={{ color: 'var(--muted)', fontSize: '10px' }}> *</span>}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ color: getPhStatus(reading.ph).color, fontWeight: '500' }}>
                         {reading.ph?.toFixed(1)}
+                        {reading.isEstimate && <span style={{ color: 'var(--muted)', fontSize: '10px' }}> *</span>}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      {hasAnomaly ? (
+                      {reading.isEstimate ? (
+                        <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>Estimat</span>
+                      ) : hasAnomaly ? (
                         <span className="badge danger">Avvik</span>
                       ) : (
                         <span className="badge ok">Normal</span>
@@ -299,11 +810,38 @@ export default function EnvironmentPage() {
                     <td style={{ textAlign: 'right', color: 'var(--text-secondary)', fontSize: '13px' }}>
                       {new Date(reading.timestamp).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}
                     </td>
+                    {dataSource === 'supabase' && (
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleDeleteReading(reading.id)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px'
+                          }}
+                          title="Slett maling"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                          </svg>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 )
               })}
             </tbody>
           </table>
+        )}
+
+        {/* Footnote for estimates */}
+        {dataSource === 'public' && readings.some(r => r.isEstimate) && (
+          <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--muted)' }}>
+            * Estimerte verdier basert pa sesong og geografisk plassering
+          </div>
         )}
       </div>
 

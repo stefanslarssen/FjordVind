@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../components/Toast'
 import { validateForm, rules, formatApiError } from '../utils/validation'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { supabase, fetchTreatments, fetchCages, fetchPredictions } from '../services/supabase'
 
 export default function TreatmentsPage() {
   const toast = useToast()
@@ -53,26 +52,61 @@ export default function TreatmentsPage() {
   async function loadData() {
     try {
       setLoading(true)
-      const [treatmentsRes, recommendationsRes, merdsRes] = await Promise.all([
-        fetch(`${API_URL}/api/treatments`),
-        fetch(`${API_URL}/api/treatments/recommendations`),
-        fetch(`${API_URL}/api/merds`)
+
+      // Fetch from Supabase
+      const [treatmentsData, merdsData, predictionsData] = await Promise.all([
+        fetchTreatments(),
+        fetchCages(),
+        fetchPredictions()
       ])
 
-      if (treatmentsRes.ok) {
-        const data = await treatmentsRes.json()
-        setTreatments(data.treatments || [])
-      }
+      // Transform treatments
+      const transformedTreatments = (treatmentsData.recommendations || []).map(t => ({
+        id: t.id,
+        merdId: t.merd_id,
+        merdName: t.merds?.navn || 'Ukjent',
+        locality: t.merds?.lokalitet || 'Ukjent',
+        treatmentType: t.treatment_type,
+        status: t.status,
+        scheduledDate: t.scheduled_date,
+        scheduledTime: t.scheduled_time,
+        completedDate: t.completed_date,
+        liceBefore: t.lice_before,
+        liceAfter: t.lice_after,
+        effectivenessPercent: t.effectiveness_percent,
+        mortalityPercent: t.mortality_percent,
+        costNok: t.cost_nok,
+        notes: t.notes,
+        recommendationSource: t.recommendation_source,
+        urgency: t.urgency
+      }))
+      setTreatments(transformedTreatments)
 
-      if (recommendationsRes.ok) {
-        const data = await recommendationsRes.json()
-        setRecommendations(data.recommendations || [])
-      }
+      // Build recommendations from predictions
+      const recommendations = (predictionsData || [])
+        .filter(p => p.recommended_action === 'SCHEDULE_TREATMENT' || p.recommended_action === 'IMMEDIATE_TREATMENT')
+        .map(p => ({
+          merdId: p.merd_id,
+          merdName: p.merds?.navn || 'Ukjent',
+          locality: p.merds?.lokalitet || 'Ukjent',
+          currentLice: p.current_lice,
+          predictedLice: p.predicted_lice,
+          recommendedTreatment: 'THERMOLICER',
+          urgency: p.recommended_action === 'IMMEDIATE_TREATMENT' ? 'IMMEDIATE' : 'HIGH',
+          urgencyText: p.recommended_action === 'IMMEDIATE_TREATMENT' ? 'Umiddelbart' : 'Høy prioritet'
+        }))
+      setRecommendations(recommendations)
 
-      if (merdsRes.ok) {
-        const data = await merdsRes.json()
-        setMerds(data || [])
-      }
+      // Transform merds
+      const transformedMerds = (merdsData || []).map(m => ({
+        id: m.id,
+        name: m.navn,
+        cage_name: m.merd_id,
+        locality: m.lokalitet,
+        lokalitet: m.lokalitet
+      }))
+      setMerds(transformedMerds)
+
     } catch (error) {
       console.error('Failed to load treatments:', error)
     } finally {
@@ -85,27 +119,21 @@ export default function TreatmentsPage() {
     setSaveError('')
     setFormErrors({})
     try {
-      const response = await fetch(`${API_URL}/api/treatments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
+      const { error } = await supabase
+        .from('treatments')
+        .insert({
+          merd_id: data.merdId,
+          treatment_type: data.treatmentType,
+          scheduled_date: data.scheduledDate,
+          scheduled_time: data.scheduledTime,
+          lice_before: data.liceBefore,
+          notes: data.notes,
+          recommendation_source: data.recommendationSource,
+          urgency: data.urgency,
+          status: 'PLANNED'
+        })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        // Handle validation errors from backend
-        if (result.error?.errors && Array.isArray(result.error.errors)) {
-          const errorMessage = result.error.errors.join('. ')
-          setSaveError(errorMessage)
-          toast.error(errorMessage, { title: 'Valideringsfeil' })
-        } else {
-          const errorMessage = result.error?.message || 'Kunne ikke opprette behandling'
-          setSaveError(errorMessage)
-          toast.error(errorMessage)
-        }
-        return false
-      }
+      if (error) throw error
 
       toast.success('Behandling opprettet', { title: 'Suksess' })
       await loadData()
@@ -125,27 +153,21 @@ export default function TreatmentsPage() {
     setSaveError('')
     setFormErrors({})
     try {
-      const response = await fetch(`${API_URL}/api/treatments/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
+      const updateData = {}
+      if (data.status) updateData.status = data.status
+      if (data.completedDate) updateData.completed_date = data.completedDate
+      if (data.liceAfter !== undefined) updateData.lice_after = data.liceAfter
+      if (data.effectivenessPercent !== undefined) updateData.effectiveness_percent = data.effectivenessPercent
+      if (data.mortalityPercent !== undefined) updateData.mortality_percent = data.mortalityPercent
+      if (data.costNok !== undefined) updateData.cost_nok = data.costNok
+      if (data.notes !== undefined) updateData.notes = data.notes
 
-      const result = await response.json()
+      const { error } = await supabase
+        .from('treatments')
+        .update(updateData)
+        .eq('id', id)
 
-      if (!response.ok) {
-        // Handle validation errors from backend
-        if (result.error?.errors && Array.isArray(result.error.errors)) {
-          const errorMessage = result.error.errors.join('. ')
-          setSaveError(errorMessage)
-          toast.error(errorMessage, { title: 'Valideringsfeil' })
-        } else {
-          const errorMessage = result.error?.message || 'Kunne ikke oppdatere behandling'
-          setSaveError(errorMessage)
-          toast.error(errorMessage)
-        }
-        return false
-      }
+      if (error) throw error
 
       toast.success('Behandling oppdatert', { title: 'Suksess' })
       await loadData()

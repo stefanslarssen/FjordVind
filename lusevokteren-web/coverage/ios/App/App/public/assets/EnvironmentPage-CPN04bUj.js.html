@@ -1,0 +1,88 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for ios/App/App/public/assets/EnvironmentPage-CPN04bUj.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">ios/App/App/public/assets</a> EnvironmentPage-CPN04bUj.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >import{r as o,j as e}from"./index-Cv4P48Md.js";const A="http://localhost:3000";function W(){var p,y,j,u,m;const[d,k]=o.useState([]),[s,S]=o.useState(null),[N,O]=o.useState(!0),[x,R]=o.useState("all");o.useEffect(()=&gt;{g();const t=setInterval(g,3e4);return()=&gt;clearInterval(t)},[]);async function g(){try{const[t,c]=await Promise.all([fetch(`${A}/api/environment`),fetch(`${A}/api/environment/summary`)]);if(t.ok){const n=await t.json();k(n.readings||[])}if(c.ok){const n=await c.json();S(n.last24Hours)}}catch(t){console.error("Failed to load environment data:",t)}finally{O(!1)}}const r=t=&gt;t&gt;=8&amp;&amp;t&lt;=14?{status:"Optimal",color:"#22c55e",bg:"rgba(34, 197, 94, 0.15)"}:t&lt;5||t&gt;18?{status:"Kritisk",color:"#ef4444",bg:"rgba(239, 68, 68, 0.15)"}:{status:"Advarsel",color:"#f59e0b",bg:"rgba(245, 158, 11, 0.15)"},l=t=&gt;t&gt;=80?{status:"Optimal",color:"#22c55e",bg:"rgba(34, 197, 94, 0.15)"}:t&gt;=60?{status:"Advarsel",color:"#f59e0b",bg:"rgba(245, 158, 11, 0.15)"}:{status:"Kritisk",color:"#ef4444",bg:"rgba(239, 68, 68, 0.15)"},i=t=&gt;t&gt;=30&amp;&amp;t&lt;=36?{status:"Optimal",color:"#22c55e",bg:"rgba(34, 197, 94, 0.15)"}:t&lt;28||t&gt;38?{status:"Kritisk",color:"#ef4444",bg:"rgba(239, 68, 68, 0.15)"}:{status:"Advarsel",color:"#f59e0b",bg:"rgba(245, 158, 11, 0.15)"},a=t=&gt;t&gt;=7.8&amp;&amp;t&lt;=8.4?{status:"Optimal",color:"#22c55e",bg:"rgba(34, 197, 94, 0.15)"}:t&lt;7.5||t&gt;8.6?{status:"Kritisk",color:"#ef4444",bg:"rgba(239, 68, 68, 0.15)"}:{status:"Advarsel",color:"#f59e0b",bg:"rgba(245, 158, 11, 0.15)"},T=[...new Set(d.map(t=&gt;t.locality))].filter(Boolean),h=x==="all"?d:d.filter(t=&gt;t.locality===x);return N?e.jsx("div",{style:{padding:"40px",textAlign:"center",color:"var(--text-secondary)"},children:"Laster miljodata..."}):e.jsxs("div",{style:{padding:"0 16px 16px 16px"},children:[e.jsxs("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"24px",padding:"12px 0",borderBottom:"1px solid var(--border)",marginBottom:"20px"},children:[e.jsxs("div",{style:{display:"flex",alignItems:"center",gap:"24px"},children:[e.jsxs("h1",{style:{margin:0,fontSize:"20px",display:"flex",alignItems:"center",gap:"12px"},children:["Miljodata",e.jsx("span",{style:{background:"var(--primary)",padding:"4px 10px",borderRadius:"4px",fontSize:"11px",fontWeight:"600",color:"white"},children:"LIVE"})]}),e.jsx("span",{style:{fontSize:"13px",color:"var(--muted)"},children:"Sanntids overvaking av vannkvalitet"})]}),e.jsxs("select",{value:x,onChange:t=&gt;R(t.target.value),style:{padding:"8px 12px",borderRadius:"6px",border:"1px solid var(--border)",background:"var(--panel)",color:"var(--text)",fontSize:"14px"},children:[e.jsx("option",{value:"all",children:"Alle lokasjoner"}),T.map(t=&gt;e.jsx("option",{value:t,children:t},t))]})]}),s&amp;&amp;e.jsxs("div",{className:"stat-grid",style:{marginBottom:"24px"},children:[e.jsxs("div",{className:"stat-card",children:[e.jsx("div",{className:"stat-label",children:"Vanntemperatur (snitt)"}),e.jsxs("div",{className:"stat-value",style:{color:r(s.avgTemperature).color},children:[(p=s.avgTemperature)==null?void 0:p.toFixed(1),"°C"]}),e.jsx("div",{style:{marginTop:"8px",padding:"4px 8px",borderRadius:"4px",fontSize:"11px",fontWeight:"500",display:"inline-block",background:r(s.avgTemperature).bg,color:r(s.avgTemperature).color},children:r(s.avgTemperature).status})]}),e.jsxs("div",{className:"stat-card",children:[e.jsx("div",{className:"stat-label",children:"Oksygen O2 (snitt)"}),e.jsxs("div",{className:"stat-value",style:{color:l(s.avgOxygen).color},children:[(y=s.avgOxygen)==null?void 0:y.toFixed(0),"%"]}),e.jsx("div",{style:{marginTop:"8px",padding:"4px 8px",borderRadius:"4px",fontSize:"11px",fontWeight:"500",display:"inline-block",background:l(s.avgOxygen).bg,color:l(s.avgOxygen).color},children:l(s.avgOxygen).status})]}),e.jsxs("div",{className:"stat-card",children:[e.jsx("div",{className:"stat-label",children:"Salinitet (snitt)"}),e.jsx("div",{className:"stat-value",style:{color:i(s.avgSalinity).color},children:(j=s.avgSalinity)==null?void 0:j.toFixed(1)}),e.jsx("div",{style:{marginTop:"8px",padding:"4px 8px",borderRadius:"4px",fontSize:"11px",fontWeight:"500",display:"inline-block",background:i(s.avgSalinity).bg,color:i(s.avgSalinity).color},children:i(s.avgSalinity).status})]}),e.jsxs("div",{className:"stat-card",children:[e.jsx("div",{className:"stat-label",children:"pH-niva (snitt)"}),e.jsx("div",{className:"stat-value",style:{color:a(s.avgPh).color},children:(u=s.avgPh)==null?void 0:u.toFixed(1)}),e.jsx("div",{style:{marginTop:"8px",padding:"4px 8px",borderRadius:"4px",fontSize:"11px",fontWeight:"500",display:"inline-block",background:a(s.avgPh).bg,color:a(s.avgPh).color},children:a(s.avgPh).status})]})]}),s&amp;&amp;s.lowOxygenCount&gt;0&amp;&amp;e.jsxs("div",{style:{background:"rgba(239, 68, 68, 0.1)",border:"1px solid rgba(239, 68, 68, 0.3)",borderRadius:"8px",padding:"16px 20px",marginBottom:"24px",display:"flex",alignItems:"center",gap:"16px"},children:[e.jsx("div",{style:{width:"40px",height:"40px",borderRadius:"50%",background:"rgba(239, 68, 68, 0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#ef4444",fontWeight:"700",fontSize:"18px"},children:"!"}),e.jsxs("div",{children:[e.jsxs("div",{style:{fontWeight:"600",color:"#ef4444",marginBottom:"4px"},children:[s.lowOxygenCount," maling(er) med lavt oksygenniva"]}),e.jsxs("div",{style:{fontSize:"13px",color:"var(--text-secondary)"},children:["Minimum oksygen siste 24 timer: ",(m=s.minOxygen)==null?void 0:m.toFixed(0),"%"]})]})]}),e.jsxs("div",{className:"card",children:[e.jsx("h3",{className:"card-title",children:"Malinger per merd"}),h.length===0?e.jsx("p",{style:{color:"var(--text-secondary)",textAlign:"center",padding:"40px 0"},children:"Ingen miljodata tilgjengelig"}):e.jsxs("table",{className:"table",children:[e.jsx("thead",{children:e.jsxs("tr",{children:[e.jsx("th",{children:"Merd"}),e.jsx("th",{children:"Lokasjon"}),e.jsx("th",{style:{textAlign:"center"},children:"Temp"}),e.jsx("th",{style:{textAlign:"center"},children:"O2"}),e.jsx("th",{style:{textAlign:"center"},children:"Salinitet"}),e.jsx("th",{style:{textAlign:"center"},children:"pH"}),e.jsx("th",{style:{textAlign:"center"},children:"Status"}),e.jsx("th",{style:{textAlign:"right"},children:"Tidspunkt"})]})}),e.jsx("tbody",{children:h.map(t=&gt;{var n,v,b,f;const c=t.isAnomaly||l(t.oxygenPercent).status==="Kritisk"||r(t.temperature).status==="Kritisk";return e.jsxs("tr",{style:{background:c?"rgba(239, 68, 68, 0.05)":"transparent"},children:[e.jsx("td",{style:{fontWeight:"500"},children:t.merdName||"Ukjent"}),e.jsx("td",{style:{color:"var(--text-secondary)"},children:t.locality}),e.jsx("td",{style:{textAlign:"center"},children:e.jsxs("span",{style:{color:r(t.temperature).color,fontWeight:"500"},children:[(n=t.temperature)==null?void 0:n.toFixed(1),"°C"]})}),e.jsx("td",{style:{textAlign:"center"},children:e.jsxs("span",{style:{color:l(t.oxygenPercent).color,fontWeight:"500"},children:[(v=t.oxygenPercent)==null?void 0:v.toFixed(0),"%"]})}),e.jsx("td",{style:{textAlign:"center"},children:e.jsx("span",{style:{color:i(t.salinity).color,fontWeight:"500"},children:(b=t.salinity)==null?void 0:b.toFixed(1)})}),e.jsx("td",{style:{textAlign:"center"},children:e.jsx("span",{style:{color:a(t.ph).color,fontWeight:"500"},children:(f=t.ph)==null?void 0:f.toFixed(1)})}),e.jsx("td",{style:{textAlign:"center"},children:c?e.jsx("span",{className:"badge danger",children:"Avvik"}):e.jsx("span",{className:"badge ok",children:"Normal"})}),e.jsx("td",{style:{textAlign:"right",color:"var(--text-secondary)",fontSize:"13px"},children:new Date(t.timestamp).toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"})})]},t.id)})})]})]}),e.jsxs("div",{className:"card",style:{marginTop:"24px"},children:[e.jsx("h3",{className:"card-title",children:"Referanseverdier for lakseoppdrett"}),e.jsxs("table",{className:"table",children:[e.jsx("thead",{children:e.jsxs("tr",{children:[e.jsx("th",{children:"Parameter"}),e.jsx("th",{style:{textAlig</span></span>n:"center"},children:"Enhet"}),e.jsx("th",{style:{textAlign:"center"},children:"Optimal"}),e.jsx("th",{style:{textAlign:"center"},children:"Advarsel"}),e.jsx("th",{style:{textAlign:"center"},children:"Kritisk"})]})}),e.jsxs("tbody",{children:[e.jsxs("tr",{children:[e.jsx("td",{children:"Temperatur"}),e.jsx("td",{style:{textAlign:"center"},children:"°C"}),e.jsx("td",{style:{textAlign:"center",color:"#22c55e"},children:"8 - 14"}),e.jsx("td",{style:{textAlign:"center",color:"#f59e0b"},children:"5-8 / 14-18"}),e.jsx("td",{style:{textAlign:"center",color:"#ef4444"},children:"&lt;5 / &gt;18"})]}),e.jsxs("tr",{children:[e.jsx("td",{children:"Oksygen (O2)"}),e.jsx("td",{style:{textAlign:"center"},children:"%"}),e.jsx("td",{style:{textAlign:"center",color:"#22c55e"},children:"&gt;80"}),e.jsx("td",{style:{textAlign:"center",color:"#f59e0b"},children:"60 - 80"}),e.jsx("td",{style:{textAlign:"center",color:"#ef4444"},children:"&lt;60"})]}),e.jsxs("tr",{children:[e.jsx("td",{children:"Salinitet"}),e.jsx("td",{style:{textAlign:"center"},children:"ppt"}),e.jsx("td",{style:{textAlign:"center",color:"#22c55e"},children:"30 - 36"}),e.jsx("td",{style:{textAlign:"center",color:"#f59e0b"},children:"28-30 / 36-38"}),e.jsx("td",{style:{textAlign:"center",color:"#ef4444"},children:"&lt;28 / &gt;38"})]}),e.jsxs("tr",{children:[e.jsx("td",{children:"pH"}),e.jsx("td",{style:{textAlign:"center"},children:"-"}),e.jsx("td",{style:{textAlign:"center",color:"#22c55e"},children:"7.8 - 8.4"}),e.jsx("td",{style:{textAlign:"center",color:"#f59e0b"},children:"7.5-7.8 / 8.4-8.6"}),e.jsx("td",{style:{textAlign:"center",color:"#ef4444"},children:"&lt;7.5 / &gt;8.6"})]})]})]})]})]})}export{W as default};</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-11T16:07:30.331Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { supabase, fetchAlerts } from '../services/supabase'
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState([])
@@ -15,20 +14,34 @@ export default function AlertsPage() {
   async function loadAlerts() {
     try {
       setLoading(true)
-      const [alertsRes, countsRes] = await Promise.all([
-        fetch(`${API_URL}/api/alerts?limit=100`),
-        fetch(`${API_URL}/api/alerts/counts`)
-      ])
 
-      if (alertsRes.ok) {
-        const data = await alertsRes.json()
-        setAlerts(data.alerts || [])
-      }
+      // Fetch alerts from Supabase
+      const { alerts: alertsData } = await fetchAlerts({ limit: 100 })
 
-      if (countsRes.ok) {
-        const data = await countsRes.json()
-        setCounts(data)
-      }
+      // Transform data to expected format
+      const transformedAlerts = (alertsData || []).map(a => ({
+        id: a.id,
+        title: a.title,
+        message: a.message,
+        severity: a.severity,
+        alertType: a.alert_type,
+        locality: a.locality || a.merds?.lokalitet,
+        merdName: a.merds?.navn,
+        recommendedAction: a.recommended_action,
+        isRead: a.is_read,
+        acknowledgedAt: a.acknowledged_at,
+        createdAt: a.created_at
+      }))
+
+      setAlerts(transformedAlerts)
+
+      // Calculate counts
+      const critical = transformedAlerts.filter(a => a.severity === 'CRITICAL').length
+      const warning = transformedAlerts.filter(a => a.severity === 'WARNING').length
+      const info = transformedAlerts.filter(a => a.severity === 'INFO').length
+      const unread = transformedAlerts.filter(a => !a.isRead).length
+
+      setCounts({ critical, warning, info, unread })
     } catch (error) {
       console.error('Failed to load alerts:', error)
     } finally {
@@ -38,7 +51,12 @@ export default function AlertsPage() {
 
   async function markAsRead(alertId) {
     try {
-      await fetch(`${API_URL}/api/alerts/${alertId}/read`, { method: 'PUT' })
+      const { error } = await supabase
+        .from('alerts')
+        .update({ is_read: true })
+        .eq('id', alertId)
+
+      if (error) throw error
       setAlerts(alerts.map(a => a.id === alertId ? { ...a, isRead: true } : a))
       setCounts({ ...counts, unread: Math.max(0, counts.unread - 1) })
     } catch (error) {
@@ -48,7 +66,15 @@ export default function AlertsPage() {
 
   async function acknowledgeAlert(alertId) {
     try {
-      await fetch(`${API_URL}/api/alerts/${alertId}/acknowledge`, { method: 'PUT' })
+      const { error } = await supabase
+        .from('alerts')
+        .update({
+          is_read: true,
+          acknowledged_at: new Date().toISOString()
+        })
+        .eq('id', alertId)
+
+      if (error) throw error
       setAlerts(alerts.map(a => a.id === alertId ? { ...a, isRead: true, acknowledgedAt: new Date().toISOString() } : a))
       setCounts({ ...counts, unread: Math.max(0, counts.unread - 1) })
     } catch (error) {

@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-
-  const { resetPassword, isDemoMode } = useAuth()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -17,10 +16,21 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
 
     try {
-      await resetPassword(email)
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Kunne ikke sende tilbakestillingslenke')
+      }
+
       setSuccess(true)
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Kunne ikke sende tilbakestillingslenke')
     } finally {
       setIsLoading(false)
     }
@@ -164,25 +174,6 @@ export default function ForgotPasswordPage() {
             </Link>
           </div>
         </div>
-
-        {/* Demo Mode Info */}
-        {isDemoMode && (
-          <div className="card" style={{ marginTop: '16px', padding: '20px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '8px',
-              color: 'var(--warning)'
-            }}>
-              <span style={{ fontSize: '18px' }}>!</span>
-              <span style={{ fontWeight: '600' }}>Demo-modus</span>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-              I demo-modus sendes ingen e-post. Bruk demo-brukerne fra innloggingssiden.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )

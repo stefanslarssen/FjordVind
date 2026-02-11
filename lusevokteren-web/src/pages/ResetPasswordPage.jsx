@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function ResetPasswordPage() {
-  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 
   const [password, setPassword] = useState('')
@@ -13,10 +13,12 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [validToken, setValidToken] = useState(false)
 
   useEffect(() => {
-    if (!token) {
-      setError('Ugyldig eller manglende token. Vennligst be om en ny tilbakestillingslenke.')
+    // Check if we have a valid token from URL
+    if (token && token.length === 64) {
+      setValidToken(true)
     }
   }, [token])
 
@@ -24,15 +26,24 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError('')
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passordene er ikke like')
       return
     }
 
-    // Validate password length
     if (password.length < 8) {
-      setError('Passord m\u00e5 v\u00e6re minst 8 tegn')
+      setError('Passord må være minst 8 tegn')
+      return
+    }
+
+    // Check password complexity
+    const hasUpperCase = /[A-Z]/.test(password)
+    const hasLowerCase = /[a-z]/.test(password)
+    const hasNumber = /\d/.test(password)
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password)
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial) {
+      setError('Passord må inneholde stor bokstav, liten bokstav, tall og spesialtegn')
       return
     }
 
@@ -41,10 +52,8 @@ export default function ResetPasswordPage() {
     try {
       const response = await fetch(`${API_URL}/api/auth/reset-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token, password }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
       })
 
       const data = await response.json()
@@ -54,14 +63,11 @@ export default function ResetPasswordPage() {
       }
 
       setSuccess(true)
-
-      // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate('/login?reset=success')
-      }, 3000)
-
+      }, 2000)
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Kunne ikke tilbakestille passord')
     } finally {
       setIsLoading(false)
     }
@@ -125,26 +131,11 @@ export default function ResetPasswordPage() {
                   Passord tilbakestilt!
                 </p>
                 <p style={{ margin: 0, fontSize: '14px' }}>
-                  Du blir n\u00e5 sendt til innloggingssiden...
+                  Du blir nå sendt til innloggingssiden...
                 </p>
               </div>
-              <Link
-                to="/login"
-                className="btn btn-primary"
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '14px',
-                  fontSize: '16px',
-                  textAlign: 'center',
-                  textDecoration: 'none',
-                  boxSizing: 'border-box'
-                }}
-              >
-                G\u00e5 til innlogging
-              </Link>
             </div>
-          ) : !token ? (
+          ) : !validToken ? (
             <div>
               <div style={{
                 padding: '16px',
@@ -157,7 +148,7 @@ export default function ResetPasswordPage() {
               }}>
                 <p style={{ margin: '0 0 8px 0', fontWeight: '600' }}>Ugyldig lenke</p>
                 <p style={{ margin: 0, fontSize: '14px' }}>
-                  Denne lenken er ugyldig eller har utl\u00f8pt. Vennligst be om en ny tilbakestillingslenke.
+                  Denne lenken er ugyldig eller har utløpt. Vennligst be om en ny tilbakestillingslenke.
                 </p>
               </div>
               <Link
@@ -193,7 +184,7 @@ export default function ResetPasswordPage() {
               )}
 
               <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px 0', fontSize: '14px' }}>
-                Velg et nytt passord for kontoen din. Passordet m\u00e5 v\u00e6re minst 8 tegn.
+                Velg et nytt passord for kontoen din. Passordet må være minst 6 tegn.
               </p>
 
               <div style={{ marginBottom: '16px' }}>
@@ -204,9 +195,9 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={inputStyle}
-                  placeholder="Minst 8 tegn"
+                  placeholder="Minst 6 tegn"
                   required
-                  minLength={8}
+                  minLength={6}
                   autoComplete="new-password"
                 />
               </div>
@@ -219,9 +210,9 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   style={inputStyle}
-                  placeholder="Skriv passordet p\u00e5 nytt"
+                  placeholder="Skriv passordet på nytt"
                   required
-                  minLength={8}
+                  minLength={6}
                   autoComplete="new-password"
                 />
               </div>

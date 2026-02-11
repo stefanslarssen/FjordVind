@@ -1,0 +1,88 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for android/app/src/main/assets/public/assets/LocationsPage-DtFGuyD9.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../../../index.html">All files</a> / <a href="index.html">android/app/src/main/assets/public/assets</a> LocationsPage-DtFGuyD9.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >import{a as O,r as n,j as e}from"./index-Cv4P48Md.js";const m="http://localhost:3000";function H(){const{t:i,language:j}=O(),[h,F]=n.useState([]),[S,R]=n.useState([]),[d,$]=n.useState("all"),[T,b]=n.useState([]),[c,w]=n.useState(null),[C,z]=n.useState([]),[B,L]=n.useState([]),[W,N]=n.useState(!0),[y,_]=n.useState(""),[x,D]=n.useState("");n.useEffect(()=&gt;{I()},[]),n.useEffect(()=&gt;{d&amp;&amp;d!=="all"?E(d):b([])},[d]),n.useEffect(()=&gt;{c&amp;&amp;U(c)},[c]);async function I(){try{N(!0);const t=await fetch(`${m}/api/barentswatch/all-localities`);if(t.ok){const o=await t.json();F(o.localities||[])}const s=await fetch(`${m}/api/companies`);if(s.ok){const o=await s.json();R(o.companies||[])}}catch(t){console.error("Failed to load data:",t)}finally{N(!1)}}async function E(t){try{const s=encodeURIComponent(t),o=await fetch(`${m}/api/companies/${s}/sites`);if(o.ok){const l=await o.json();b(l.siteNumbers||[])}}catch(s){console.error("Failed to load company sites:",s)}}async function U(t){try{const s=await fetch(`${m}/api/merds?locationId=${encodeURIComponent(t)}`);if(s.ok){const o=await s.json();z(o);const l=[];for(const p of o){const u=await fetch(`${m}/api/lice-counts?merdId=${p.id}`);if(u.ok){const a=await u.json();l.push(...a.map(g=&gt;({...g,cageName:p.name})))}}L(l)}}catch(s){console.error("Failed to load locality details:",s)}}const A=S.filter(t=&gt;t.name.toLowerCase().includes(y.toLowerCase()));let r=d==="all"?h:h.filter(t=&gt;T.includes(t.localityNo));x.trim()&amp;&amp;(r=r.filter(t=&gt;{var s;return t.name.toLowerCase().includes(x.toLowerCase())||((s=t.municipality)==null?void 0:s.toLowerCase().includes(x.toLowerCase()))}));const f={total:r.length,danger:r.filter(t=&gt;t.avgAdultFemaleLice&gt;=.1).length,warning:r.filter(t=&gt;t.avgAdultFemaleLice&gt;=.08&amp;&amp;t.avgAdultFemaleLice&lt;.1).length,ok:r.filter(t=&gt;t.avgAdultFemaleLice&lt;.08&amp;&amp;t.avgAdultFemaleLice!==null).length,noReport:r.filter(t=&gt;!t.hasReported||t.avgAdultFemaleLice===null).length};function v(t){return!t&amp;&amp;t!==0?"unknown":t&gt;=.1?"danger":t&gt;=.08?"warn":"ok"}if(W)return e.jsx("div",{children:i("common.loading")});if(c){const t=h.find(s=&gt;s.name===c);return e.jsxs("div",{children:[e.jsxs("div",{style:{marginBottom:24},children:[e.jsx("button",{onClick:()=&gt;{w(null),z([]),L([])},style:{background:"none",border:"none",color:"var(--primary)",cursor:"pointer",fontSize:14,marginBottom:16,padding:0},children:i("locations.backToOverview")}),e.jsx("h1",{className:"page-title",children:c}),e.jsxs("p",{className:"page-subtitle",children:[t==null?void 0:t.municipality," • ",i("locations.locationNo"),": ",t==null?void 0:t.localityNo]})]}),C.length===0?e.jsx("div",{className:"card",children:e.jsx("p",{style:{color:"var(--muted)"},children:i("locations.noCages")})}):e.jsx("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))"},children:C.map(s=&gt;{const o=B.filter(a=&gt;a.cageName===s.name),l=o.sort((a,g)=&gt;new Date(g.date)-new Date(a.date))[0],p=(l==null?void 0:l.adult_female_lice)/(l==null?void 0:l.fish_examined)||0,u=v(p);return e.jsxs("div",{className:"card",children:[e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16},children:[e.jsxs("div",{children:[e.jsxs("h3",{style:{margin:0,fontSize:18},children:[i("locations.cage"),": ",s.name]}),e.jsxs("p",{style:{color:"var(--muted)",fontSize:13,margin:"4px 0 0"},children:[o.length," ",i("locations.registeredCounts")]})]}),l&amp;&amp;e.jsx("span",{className:`badge ${u}`,children:p.toFixed(3)})]}),l?e.jsxs("div",{children:[e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16},children:[e.jsxs("div",{children:[e.jsx("div",{style:{color:"var(--muted)",fontSize:12},children:i("locations.fishExamined")}),e.jsx("div",{style:{fontWeight:600},children:l.fish_examined})]}),e.jsxs("div",{children:[e.jsx("div",{style:{color:"var(--muted)",fontSize:12},children:i("locations.adultFemale")}),e.jsx("div",{style:{fontWeight:600},children:l.adult_female_lice})]}),e.jsxs("div",{children:[e.jsx("div",{style:{color:"var(--muted)",fontSize:12},children:i("locations.lastCount")}),e.jsx("div",{style:{fontWeight:600},children:new Date(l.date).toLocaleDateString(j==="en"?"en-US":"nb-NO")})]})]}),o.length&gt;1&amp;&amp;e.jsxs("details",{style:{marginTop:12},children:[e.jsxs("summary",{style:{cursor:"pointer",color:"var(--primary)",fontSize:13},children:[i("locations.showHistory")," (",o.length," ",i("locations.counts"),")"]}),e.jsx("div",{style:{marginTop:12,maxHeight:300,overflowY:"auto"},children:e.jsxs("table",{style:{width:"100%",fontSize:12},children:[e.jsx("thead",{children:e.jsxs("tr",{style:{borderBottom:"1px solid var(--border)"},children:[e.jsx("th",{style:{textAlign:"left",padding:"8px"},children:i("locations.date")}),e.jsx("th",{style:{textAlign:"right",padding:"8px"},children:i("locations.fish")}),e.jsx("th",{style:{textAlign:"right",padding:"8px"},children:i("locations.adultFemale")}),e.jsx("th",{style:{textAlign:"right",padding:"8px"},children:i("locations.avg")})]})}),e.jsx("tbody",{children:o.map((a,g)=&gt;{const k=a.adult_female_lice/a.fish_examined,P=v(k);return e.jsxs("tr",{style:{borderBottom:"1px solid var(--border)"},children:[e.jsx("td",{style:{padding:"8px"},children:new Date(a.date).toLocaleDateString(j==="en"?"en-US":"nb-NO")}),e.jsx("td",{style:{textAlign:"right",padding:"8px"},children:a.fish_examined}),e.jsx("td",{style:{textAlign:"right",padding:"8px"},children:a.adult_female_lice}),e.jsx("td",{style:{textAlign:"right",padding:"8px"},children:e.jsx("span",{className:`badge ${P}`,style:{fontSize:11},children:k.toFixed(3)})})]},g)})})]})})]})]}):e.jsx("p",{style:{color:"var(--muted)",fontSize:13},children:i("locations.noCountsRegistered")})]},s.id)})})]})}return e.jsxs("div",{style:{padding:"0 16px 16px 16px"},children:[e.jsxs("div",{style:{display:"flex",alignItems:"center",gap:"24px",padding:"12px 0",borderBottom:"1px solid var(--border)",marginBottom:"20px"},children:[e.jsx("h1",{style:{margin:0,fontSize:"20px"},children:i("locations.title")}),e.jsx("span",{style:{fontSize:"13px",color:"var(--muted)"},children:i("locations.subtitle")})]}),e.jsx("div",{className:"card",style:{marginBottom:24},children:e.jsxs("div",{style:{display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"},children:[e.jsxs("div",{style:{flex:"1 1 300px"},children:[e.jsx("label",{style:{display:"block",fontWeight:600,marginBottom:8,fontSize:14},children:i("locations.searchLocation")}),e.jsx("input",{type:"text",placeholder:i("locations.searchPlaceholder"),value:x,onChange:t=&gt;D(t.target.value),style:{width:"100%",padding:"10px",borderRadius:"6px",border:"1px solid var(--border)",fontSize:14,background:"var(--bg)",color:"var(--text)"}}),x&amp;&amp;e.jsxs("p",{style:{fontSize:12,color:"var(--muted)",marginTop:4},children:[i("locations.showing")," ",r.length," ",i("locations.of")," ",h.length," ",i("locations.localities")]})]}),S.length&gt;0&amp;&amp;e.jsxs("div",{style:{flex:"1 1 300px"},children:[e.jsx("label",{style:{display:"block",fontWeight:600,marginBottom:8,fontSize:14},children:i("locations.filterByCompany")}),e.jsx("input",{type:"text",placeholder:i("locations.companyPlaceholder"),value:y,onChange:t=&gt;_(t.target.value),style:{width:"100%",padding:"10px",borderRadius:"6px",border:"1px solid var(--border)",fontSize:14,background:"var(--bg)",color:"var(--text)",marginBottom:8}}),e.jsxs("select",{value:d,onChange:t=&gt;$(t.target.value),size:6,style:{width:"100%",padding:"8px",borderRadius:"6px",border:"1px solid var(--border)",fontSize:13,background:"var(--bg)",color:"var(--text)"},children:[e.jsxs("option",{value:"all",children:[i("locations.allCompanies")," (",h.length," ",i("locations.localities"),")"]}),A.map(t=&gt;e.jsx("option",{value:t.name,children:t.name},t.name))]}),y&amp;&amp;e.jsxs("p",{style:{fontSize:12,color:"var(--muted)",marginTop:4},children:[i("locations.showing")," ",A.length," ",i("locations.showingCompanies")]})]}),e.jsxs("div",{style:{display:"flex",gap:16,flexWrap:"wrap"},children:[e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:24,fontWeight:700,color:"var(--text)"},children:f.total}),e.jsx("div",{style:{fontSize:12,color:"var(--muted)"},children:i("locations.total")})]}),e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:24,fontWeight:700,color:"#f44336"},children:f.danger}),e.jsx("div",{style:{fontSize:12,color:"var(--muted)"},children:i("locations.danger")})]}),e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:24,fontWeight:700,color:"#ff9800"},children:f.warning}),e.jsx("div",{style:{fontSize:12,color:"var(--muted)"},children:i("locations.warning")})]}),e.jsxs("div",{style:{textAlign:"center"},children:[e.jsx("div",{style:{fontSize:24,fontWeig</span></span>ht:700,color:"#4CAF50"},children:f.ok}),e.jsx("div",{style:{fontSize:12,color:"var(--muted)"},children:i("locations.ok")})]})]})]})}),r.length===0?e.jsx("div",{className:"card",children:e.jsx("p",{style:{color:"var(--muted)"},children:d==="all"?i("locations.noLocations"):`${i("locations.noLocationsFor")} ${d}`})}):e.jsx("div",{style:{display:"grid",gap:16,gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))"},children:r.map(t=&gt;{const s=t.avgAdultFemaleLice,o=v(s);return e.jsxs("div",{className:"card",onClick:()=&gt;w(t.name),style:{cursor:"pointer",transition:"transform 0.2s, box-shadow 0.2s"},onMouseEnter:l=&gt;{l.currentTarget.style.transform="translateY(-2px)",l.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.15)"},onMouseLeave:l=&gt;{l.currentTarget.style.transform="translateY(0)",l.currentTarget.style.boxShadow="none"},children:[e.jsxs("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16},children:[e.jsxs("div",{children:[e.jsx("h3",{style:{margin:0,fontSize:18},children:t.name}),e.jsx("p",{style:{color:"var(--muted)",fontSize:13,margin:"4px 0 0"},children:t.municipality})]}),e.jsx("span",{className:`badge ${o}`,children:s!==null?s.toFixed(3):"N/A"})]}),e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12},children:[e.jsxs("div",{children:[e.jsx("div",{style:{color:"var(--muted)",fontSize:12},children:i("locations.status")}),e.jsx("div",{style:{fontWeight:600},children:t.isFallow?`🛑 ${i("locations.fallow")}`:t.hasReported?`✅ ${i("locations.reported")}`:`⚠️ ${i("locations.notReported")}`})]}),e.jsxs("div",{children:[e.jsx("div",{style:{color:"var(--muted)",fontSize:12},children:i("locations.locationNo")}),e.jsx("div",{style:{fontWeight:600},children:t.localityNo})]})]}),e.jsx("div",{style:{marginTop:12,fontSize:13,color:"var(--primary)",fontWeight:500},children:i("locations.clickToSeeCages")})]},t.localityNo)})})]})}export{H as default};</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-11T16:07:30.331Z
+            </div>
+        <script src="../../../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../../../sorter.js"></script>
+        <script src="../../../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

@@ -1,9 +1,7 @@
 // E2E Tests: Settings (Innstillinger)
 describe('Settings / Innstillinger', () => {
   beforeEach(() => {
-    cy.window().then((win) => {
-      win.localStorage.setItem('auth_token', 'demo_token_admin')
-    })
+    cy.setDemoAuth('admin')
   })
 
   describe('Settings Page', () => {

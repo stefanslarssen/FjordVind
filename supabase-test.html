@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lusevokteren - Supabase Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #1e3a5f;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .status.success { color: #2e7d32; }
+        .status.error { color: #c62828; }
+        .status.loading { color: #1976d2; }
+        .error-box {
+            background: #ffebee;
+            border: 1px solid #ef9a9a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #b71c1c;
+            word-break: break-all;
+        }
+        .count {
+            font-size: 48px;
+            font-weight: bold;
+            color: #1976d2;
+            text-align: center;
+        }
+        .label {
+            text-align: center;
+            color: #666;
+            margin-top: 8px;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+        }
+        .btn-success {
+            background: #2e7d32;
+            color: white;
+        }
+        .merd-list {
+            margin-top: 16px;
+        }
+        .merd-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .merd-item:last-child {
+            border-bottom: none;
+        }
+        .url-info {
+            text-align: center;
+            font-size: 11px;
+            color: #999;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐟 Lusevokteren</h1>
+    <h2 style="text-align: center; color: #666; font-weight: normal;">Supabase Test</h2>
+
+    <!-- Tilkoblingsstatus -->
+    <div class="card">
+        <div id="status" class="status loading">⏳ Kobler til...</div>
+        <div id="error-container"></div>
+    </div>
+
+    <!-- Merd-telling -->
+    <div class="card" id="merd-card" style="display: none;">
+        <div class="count" id="merd-count">0</div>
+        <div class="label">merder i databasen</div>
+        <div class="merd-list" id="merd-list"></div>
+    </div>
+
+    <!-- Knapper -->
+    <button class="btn-primary" id="refresh-btn" onclick="testConnection()">
+        🔄 Test tilkobling på nytt
+    </button>
+    
+    <button class="btn-success" id="add-btn" onclick="addTestMerd()" disabled>
+        ➕ Legg til test-merd
+    </button>
+
+    <div class="url-info" id="url-info"></div>
+
+    <script>
+        // Supabase konfigurasjon
+        const SUPABASE_URL = 'https://nhmlmikqmtjyotpdnbuv.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable__L9ovUZ3sHgCc6HnwWvlTg_EMRn2csU';
+
+        // Initialiser Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Vis URL
+        document.getElementById('url-info').textContent = 'URL: ' + SUPABASE_URL;
+
+        // Test tilkobling ved oppstart
+        testConnection();
+
+        async function testConnection() {
+            const statusEl = document.getElementById('status');
+            const errorContainer = document.getElementById('error-container');
+            const merdCard = document.getElementById('merd-card');
+            const addBtn = document.getElementById('add-btn');
+
+            statusEl.className = 'status loading';
+            statusEl.textContent = '⏳ Kobler til...';
+            errorContainer.innerHTML = '';
+            addBtn.disabled = true;
+
+            try {
+                // Prøv å lese fra merds-tabellen
+                const { data, error } = await supabase
+                    .from('merds')
+                    .select('*')
+                    .limit(100);
+
+                if (error) throw error;
+
+                // Suksess!
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ Supabase tilkoblet!';
+                
+                // Vis merd-kort
+                merdCard.style.display = 'block';
+                document.getElementById('merd-count').textContent = data.length;
+                
+                // Vis merd-liste
+                const listEl = document.getElementById('merd-list');
+                if (data.length > 0) {
+                    listEl.innerHTML = data.slice(0, 5).map(merd => `
+                        <div class="merd-item">
+                            <span><strong>${merd.navn || merd.merd_id || 'Ukjent'}</strong></span>
+                            <span style="color: #666;">${merd.lokalitet || ''}</span>
+                        </div>
+                    `).join('');
+                    
+                    if (data.length > 5) {
+                        listEl.innerHTML += `<div class="merd-item" style="color: #999;">... og ${data.length - 5} til</div>`;
+                    }
+                } else {
+                    listEl.innerHTML = '<div class="merd-item" style="color: #999;">Ingen merder ennå</div>';
+                }
+
+                addBtn.disabled = false;
+
+            } catch (err) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Tilkobling mislyktes';
+                errorContainer.innerHTML = `<div class="error-box">${err.message || err}</div>`;
+                merdCard.style.display = 'none';
+            }
+        }
+
+        async function addTestMerd() {
+            const addBtn = document.getElementById('add-btn');
+            addBtn.disabled = true;
+            addBtn.textContent = '⏳ Legger til...';
+
+            try {
+                const testMerd = {
+                    merd_id: 'TEST-' + Date.now(),
+                    navn: 'Test Merd ' + new Date().toLocaleTimeString('no-NO'),
+                    lokalitet: 'Test Lokalitet',
+                    volum: 5000,
+                    antall_fisk: 10000
+                };
+
+                const { error } = await supabase
+                    .from('merds')
+                    .insert(testMerd);
+
+                if (error) throw error;
+
+                alert('✅ Test-merd lagt til!');
+                
+                // Oppdater listen
+                await testConnection();
+
+            } catch (err) {
+                alert('❌ Feil: ' + (err.message || err));
+            } finally {
+                addBtn.disabled = false;
+                addBtn.textContent = '➕ Legg til test-merd';
+            }
+        }
+    </script>
+</body>
+</html>

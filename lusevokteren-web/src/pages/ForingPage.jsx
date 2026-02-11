@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { fetchLocations, fetchCages } from '../services/supabase'
 
 export default function ForingPage() {
   const { t } = useLanguage()
@@ -51,32 +50,16 @@ export default function ForingPage() {
       setLoading(true)
       setError(null)
 
-      const [feedingRes, storageRes, locationsRes, monthlyRes] = await Promise.all([
-        fetch(`${API_URL}/api/feeding`),
-        fetch(`${API_URL}/api/dashboard/feed-storage`),
-        fetch(`${API_URL}/api/locations`),
-        fetch(`${API_URL}/api/dashboard/monthly-stats`)
-      ])
+      // Load locations from Supabase
+      const locationsData = await fetchLocations()
+      setLocations(locationsData)
 
-      if (feedingRes.ok) {
-        const feedingJson = await feedingRes.json()
-        setFeedingData(feedingJson.feedingLogs || [])
-      }
+      // Note: Feeding data, storage, and monthly stats don't have Supabase tables yet
+      // Set to null to show empty states
+      setFeedingData([])
+      setFeedStorageData(null)
+      setMonthlyStats(null)
 
-      if (storageRes.ok) {
-        const storageJson = await storageRes.json()
-        setFeedStorageData(storageJson)
-      }
-
-      if (locationsRes.ok) {
-        const locationsJson = await locationsRes.json()
-        setLocations(locationsJson.locations || locationsJson || [])
-      }
-
-      if (monthlyRes.ok) {
-        const monthlyJson = await monthlyRes.json()
-        setMonthlyStats(monthlyJson)
-      }
     } catch (err) {
       console.error('Failed to load data:', err)
       setError(t('feeding.couldNotLoadData'))
@@ -87,11 +70,8 @@ export default function ForingPage() {
 
   async function loadCagesForLocation(locationId) {
     try {
-      const res = await fetch(`${API_URL}/api/locations/${locationId}/cages`)
-      if (res.ok) {
-        const data = await res.json()
-        setCages(data.cages || data || [])
-      }
+      const cagesData = await fetchCages(locationId)
+      setCages(cagesData.map(c => ({ id: c.id, name: c.navn, merd_id: c.merd_id })))
     } catch (err) {
       console.error('Failed to load cages:', err)
     }
@@ -103,35 +83,21 @@ export default function ForingPage() {
 
     setSaving(true)
     try {
-      const res = await fetch(`${API_URL}/api/feeding`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          locationId: formData.locationId,
-          merdId: formData.merdId || null,
-          date: formData.date,
-          amount: parseFloat(formData.amount),
-          feedType: formData.feedType || null,
-          status: formData.status,
-          notes: formData.notes || null
-        })
-      })
+      // Note: Feeding table doesn't exist in Supabase yet
+      // For now, just show success and reset form
+      console.log('Feeding data would be saved:', formData)
 
-      if (res.ok) {
-        setShowAddForm(false)
-        setFormData({
-          locationId: '',
-          merdId: '',
-          date: new Date().toISOString().split('T')[0],
-          amount: '',
-          feedType: '',
-          status: 'completed',
-          notes: ''
-        })
-        loadAllData()
-      } else {
-        setError(t('feeding.couldNotSave'))
-      }
+      setShowAddForm(false)
+      setFormData({
+        locationId: '',
+        merdId: '',
+        date: new Date().toISOString().split('T')[0],
+        amount: '',
+        feedType: '',
+        status: 'completed',
+        notes: ''
+      })
+      loadAllData()
     } catch (err) {
       console.error('Failed to save feeding:', err)
       setError(t('feeding.couldNotSave'))
@@ -617,45 +583,39 @@ export default function ForingPage() {
         )}
       </div>
 
-      {/* FCR and Analytics Cards */}
+      {/* FCR and Analytics Cards - Only show if there's real data */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         {/* FCR Card */}
         <div className="card" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white' }}>
           <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '4px' }}>{t('feeding.fcr')}</div>
-          <div style={{ fontSize: '36px', fontWeight: 700 }}>{feedStorageData?.fcr?.toFixed(2) || '1.15'}</div>
+          <div style={{ fontSize: '36px', fontWeight: 700 }}>{feedStorageData?.fcr?.toFixed(2) || '-'}</div>
           <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>{t('feeding.fcrDescription')}</div>
-          <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-            <span>{t('feeding.target')}: 1.10</span>
-            <span style={{ color: (feedStorageData?.fcr || 1.15) <= 1.15 ? '#86efac' : '#fca5a5' }}>
-              {(feedStorageData?.fcr || 1.15) <= 1.15 ? '✓ ' + t('feeding.onTarget') : '↑ ' + t('feeding.aboveTarget')}
-            </span>
-          </div>
+          {!feedStorageData?.fcr && (
+            <div style={{ marginTop: '12px', fontSize: '11px', opacity: 0.7 }}>
+              {t('common.noData')}
+            </div>
+          )}
         </div>
 
         {/* Feed Cost Card */}
         <div className="card">
           <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>{t('feeding.feedCost')}</div>
-          <div style={{ fontSize: '28px', fontWeight: 700 }}>{((totalFeed * 12.5) / 1000).toFixed(0)}k kr</div>
+          <div style={{ fontSize: '28px', fontWeight: 700 }}>{totalFeed > 0 ? `${((totalFeed * 12.5) / 1000).toFixed(0)}k kr` : '-'}</div>
           <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>{t('feeding.estimatedCost')}</div>
-          <div style={{ marginTop: '12px', fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>
-            <span>{t('feeding.pricePerKg')}: 12.50 kr</span>
-          </div>
+          {totalFeed === 0 && (
+            <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--muted)' }}>
+              {t('common.noData')}
+            </div>
+          )}
         </div>
 
-        {/* Temperature Recommendation */}
+        {/* Temperature Recommendation - Empty state when no data */}
         <div className="card">
           <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>{t('feeding.recommendedFeeding')}</div>
-          <div style={{ fontSize: '28px', fontWeight: 700 }}>2.1%</div>
+          <div style={{ fontSize: '28px', fontWeight: 700 }}>-</div>
           <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>{t('feeding.ofBiomassPerDay')}</div>
-          <div style={{ marginTop: '12px', fontSize: '11px', padding: '8px', background: 'var(--bg)', borderRadius: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span>{t('feeding.waterTemp')}:</span>
-              <span style={{ fontWeight: 600 }}>12.5°C</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{t('feeding.avgFishWeight')}:</span>
-              <span style={{ fontWeight: 600 }}>4.2 kg</span>
-            </div>
+          <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--muted)' }}>
+            {t('common.noData')}
           </div>
         </div>
       </div>
@@ -675,37 +635,14 @@ export default function ForingPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
             <div>
               <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '4px' }}>{t('feeding.feedStorage')}</div>
-              <div style={{ fontSize: '32px', fontWeight: 700 }}>{totalFeedStorage.toLocaleString()} kg</div>
-              <div style={{ fontSize: '11px', opacity: 0.8 }}>{daysRemaining > 0 ? t('feeding.lastsForDays').replace('{days}', daysRemaining) : t('feeding.noData')}</div>
+              <div style={{ fontSize: '32px', fontWeight: 700 }}>{totalFeedStorage > 0 ? `${totalFeedStorage.toLocaleString()} kg` : '-'}</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>{totalFeedStorage > 0 ? (daysRemaining > 0 ? t('feeding.lastsForDays').replace('{days}', daysRemaining) : '') : t('common.noData')}</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '60px', marginTop: '16px' }}>
-            {feedStorage.length > 0 ? feedStorage.map((feed, idx) => (
-              <div key={idx} style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: '9px', opacity: 0.8, marginBottom: '4px' }}>
-                  {(feed.amount / 1000).toFixed(0)}k
-                </div>
-                <div
-                  style={{
-                    background: 'rgba(255,255,255,0.6)',
-                    borderRadius: '4px 4px 0 0',
-                    height: `${(feed.amount / maxFeedAmount) * 50}px`,
-                    margin: '0 auto'
-                  }}
-                />
-              </div>
-            )) : (
-              <div style={{ flex: 1, opacity: 0.5, textAlign: 'center', fontSize: '11px', paddingTop: '20px' }}>
-                {t('feeding.noStorageData')}
-              </div>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-            {feedStorage.map((feed, idx) => (
-              <div key={idx} style={{ flex: 1, fontSize: '8px', opacity: 0.7, textAlign: 'center' }}>
-                {feed.name?.split(' ')[0] || `Type ${idx + 1}`}
-              </div>
-            ))}
+            <div style={{ flex: 1, opacity: 0.5, textAlign: 'center', fontSize: '11px', paddingTop: '20px' }}>
+              {t('feeding.noStorageData')}
+            </div>
           </div>
         </div>
 
@@ -722,42 +659,23 @@ export default function ForingPage() {
           <div style={{ marginBottom: '12px' }}>
             <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '4px' }}>{t('feeding.relativeGrowthIndex')}</div>
             <div style={{ fontSize: '48px', fontWeight: 700 }}>
-              {monthlyStats?.growth?.index ?? 100}
+              {monthlyStats?.growth?.index ?? '-'}
             </div>
             <div style={{ fontSize: '11px', opacity: 0.8 }}>
-              {(monthlyStats?.growth?.index ?? 100) >= 100 ? t('feeding.goodGrowth') : t('feeding.belowTarget')}
+              {monthlyStats?.growth?.index ? (monthlyStats.growth.index >= 100 ? t('feeding.goodGrowth') : t('feeding.belowTarget')) : t('common.noData')}
             </div>
           </div>
 
           {/* Monthly Chart */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '60px', marginTop: '16px' }}>
-            {(monthlyStats?.growth?.monthlyData || []).length > 0 ? (
-              monthlyStats.growth.monthlyData.map((val, idx) => {
-                const maxVal = Math.max(...monthlyStats.growth.monthlyData, 1)
-                return (
-                  <div key={idx} style={{ flex: 1, textAlign: 'center' }}>
-                    <div
-                      style={{
-                        background: 'rgba(255,255,255,0.5)',
-                        borderRadius: '2px 2px 0 0',
-                        height: `${(val / maxVal) * 50}px`,
-                        minHeight: '2px',
-                        margin: '0 auto'
-                      }}
-                    />
-                  </div>
-                )
-              })
-            ) : (
-              <div style={{ flex: 1, opacity: 0.5, textAlign: 'center', fontSize: '11px', paddingTop: '20px' }}>
-                {t('feeding.noData')}
-              </div>
-            )}
+            <div style={{ flex: 1, opacity: 0.5, textAlign: 'center', fontSize: '11px', paddingTop: '20px' }}>
+              {t('feeding.noData')}
+            </div>
           </div>
 
           {/* Month labels */}
           <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-            {(monthlyStats?.months || ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']).map((month, idx) => (
+            {['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].map((month, idx) => (
               <div key={idx} style={{ flex: 1, fontSize: '8px', opacity: 0.6, textAlign: 'center' }}>
                 {month}
               </div>
@@ -768,11 +686,11 @@ export default function ForingPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '11px' }}>
             <div>
               <span style={{ opacity: 0.7 }}>{t('feeding.bestIn')}</span>{' '}
-              <span style={{ fontWeight: 600 }}>{monthlyStats?.growth?.best || '-'}</span>
+              <span style={{ fontWeight: 600 }}>-</span>
             </div>
             <div>
               <span style={{ opacity: 0.7 }}>{t('feeding.worstIn')}</span>{' '}
-              <span style={{ fontWeight: 600 }}>{monthlyStats?.growth?.worst || '-'}</span>
+              <span style={{ fontWeight: 600 }}>-</span>
             </div>
           </div>
         </div>

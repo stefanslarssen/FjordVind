@@ -1,0 +1,88 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for ios/App/App/public/assets/AlertsPage-BvXlHEx2.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">ios/App/App/public/assets</a> AlertsPage-BvXlHEx2.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >import{r as l,j as e}from"./index-Cv4P48Md.js";const d="http://localhost:3000";function A(){const[s,c]=l.useState([]),[n,x]=l.useState({critical:0,warning:0,info:0,unread:0}),[m,g]=l.useState(!0),[o,h]=l.useState("all");l.useEffect(()=&gt;{u()},[]);async function u(){try{g(!0);const[r,i]=await Promise.all([fetch(`${d}/api/alerts?limit=100`),fetch(`${d}/api/alerts/counts`)]);if(r.ok){const a=await r.json();c(a.alerts||[])}if(i.ok){const a=await i.json();x(a)}}catch(r){console.error("Failed to load alerts:",r)}finally{g(!1)}}async function w(r){try{await fetch(`${d}/api/alerts/${r}/read`,{method:"PUT"}),c(s.map(i=&gt;i.id===r?{...i,isRead:!0}:i)),x({...n,unread:Math.max(0,n.unread-1)})}catch(i){console.error("Failed to mark alert as read:",i)}}async function S(r){try{await fetch(`${d}/api/alerts/${r}/acknowledge`,{method:"PUT"}),c(s.map(i=&gt;i.id===r?{...i,isRead:!0,acknowledgedAt:new Date().toISOString()}:i)),x({...n,unread:Math.max(0,n.unread-1)})}catch(i){console.error("Failed to acknowledge alert:",i)}}const f=o==="all"?s:o==="unread"?s.filter(r=&gt;!r.isRead):s.filter(r=&gt;r.severity===o),y=r=&gt;{const i=new Date(r),p=new Date-i,j=Math.floor(p/6e4),k=Math.floor(p/36e5),v=Math.floor(p/864e5);return j&lt;60?`${j} min siden`:k&lt;24?`${k} timer siden`:v&lt;7?`${v} dager siden`:i.toLocaleDateString("nb-NO")},t={critical:e.jsxs("svg",{width:"22",height:"22",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round",children:[e.jsx("path",{d:"M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"}),e.jsx("line",{x1:"12",y1:"9",x2:"12",y2:"13"}),e.jsx("line",{x1:"12",y1:"17",x2:"12.01",y2:"17"})]}),warning:e.jsxs("svg",{width:"22",height:"22",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round",children:[e.jsx("circle",{cx:"12",cy:"12",r:"10"}),e.jsx("line",{x1:"12",y1:"8",x2:"12",y2:"12"}),e.jsx("line",{x1:"12",y1:"16",x2:"12.01",y2:"16"})]}),info:e.jsxs("svg",{width:"22",height:"22",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round",children:[e.jsx("circle",{cx:"12",cy:"12",r:"10"}),e.jsx("line",{x1:"12",y1:"16",x2:"12",y2:"12"}),e.jsx("line",{x1:"12",y1:"8",x2:"12.01",y2:"8"})]}),unread:e.jsxs("svg",{width:"22",height:"22",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round",children:[e.jsx("path",{d:"M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"}),e.jsx("path",{d:"M13.73 21a2 2 0 0 1-3.46 0"})]}),check:e.jsx("svg",{width:"16",height:"16",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2.5",strokeLinecap:"round",strokeLinejoin:"round",children:e.jsx("polyline",{points:"20 6 9 17 4 12"})}),lice:e.jsxs("svg",{width:"24",height:"24",viewBox:"0 0 24 24",fill:"currentColor",children:[e.jsx("circle",{cx:"12",cy:"12",r:"3"}),e.jsx("circle",{cx:"6",cy:"8",r:"2"}),e.jsx("circle",{cx:"18",cy:"8",r:"2"}),e.jsx("circle",{cx:"6",cy:"16",r:"2"}),e.jsx("circle",{cx:"18",cy:"16",r:"2"}),e.jsx("circle",{cx:"12",cy:"6",r:"1.5"}),e.jsx("circle",{cx:"12",cy:"18",r:"1.5"})]}),treatment:e.jsx("svg",{width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round",children:e.jsx("path",{d:"M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"})}),mortality:e.jsx("svg",{width:"24",height:"24",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round",children:e.jsx("path",{d:"M22 12h-4l-3 9L9 3l-3 9H2"})})},I=(r,i)=&gt;r!=null&amp;&amp;r.includes("LICE")?t.lice:r!=null&amp;&amp;r.includes("TREATMENT")?t.treatment:r!=null&amp;&amp;r.includes("MORTALITY")?t.mortality:i==="CRITICAL"?t.critical:i==="WARNING"?t.warning:t.info,b={CRITICAL:{gradient:"linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)",color:"#ef4444",bgLight:"rgba(239, 68, 68, 0.08)",label:"Kritisk"},WARNING:{gradient:"linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)",color:"#f59e0b",bgLight:"rgba(245, 158, 11, 0.08)",label:"Advarsel"},INFO:{gradient:"linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)",color:"#3b82f6",bgLight:"rgba(59, 130, 246, 0.08)",label:"Info"}};return m?e.jsxs("div",{style:{padding:"80px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:"16px"},children:[e.jsx("div",{style:{width:"48px",height:"48px",border:"3px solid #e2e8f0",borderTopColor:"#3b82f6",borderRadius:"50%",animation:"spin 1s linear infinite"}}),e.jsx("span",{style:{color:"#64748b"},children:"Laster varsler..."}),e.jsx("style",{children:"@keyframes spin { to { transform: rotate(360deg); } }"})]}):e.jsxs("div",{style:{padding:"0 24px 24px 24px",maxWidth:"1200px",margin:"0 auto"},children:[e.jsxs("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 0",borderBottom:"1px solid var(--border)",marginBottom:"28px"},children:[e.jsxs("div",{children:[e.jsx("h1",{style:{margin:0,fontSize:"22px",fontWeight:"600",color:"var(--foreground)"},children:"Varsler"}),e.jsx("p",{style:{margin:"4px 0 0 0",fontSize:"14px",color:"var(--muted)"},children:"Overvåk kritiske hendelser og varsler for dine anlegg"})]}),e.jsxs("button",{onClick:u,style:{display:"flex",alignItems:"center",gap:"8px",padding:"10px 18px",borderRadius:"10px",border:"1px solid var(--border)",background:"var(--card)",color:"var(--foreground)",cursor:"pointer",fontSize:"13px",fontWeight:"500",transition:"all 0.2s ease"},children:[e.jsxs("svg",{width:"16",height:"16",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",children:[e.jsx("path",{d:"M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"}),e.jsx("path",{d:"M3 3v5h5"}),e.jsx("path",{d:"M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"}),e.jsx("path",{d:"M16 16h5v5"})]}),"Oppdater"]})]}),e.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",gap:"16px",marginBottom:"28px"},children:[{key:"critical",label:"Kritiske",value:n.critical,color:"#ef4444",icon:t.critical},{key:"warning",label:"Advarsler",value:n.warning,color:"#f59e0b",icon:t.warning},{key:"info",label:"Informasjon",value:n.info,color:"#3b82f6",icon:t.info},{key:"unread",label:"Uleste",value:n.unread,color:"#8b5cf6",icon:t.unread}].map(r=&gt;e.jsxs("div",{onClick:()=&gt;h(r.key==="unread"?"unread":r.key.toUpperCase()),style:{background:"var(--card)",borderRadius:"16px",padding:"20px 24px",display:"flex",alignItems:"center",gap:"16px",cursor:"pointer",transition:"all 0.2s ease",border:"1px solid var(--border)",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"},onMouseEnter:i=&gt;{i.currentTarget.style.transform="translateY(-2px)",i.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.08)"},onMouseLeave:i=&gt;{i.currentTarget.style.transform="translateY(0)",i.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.04)"},children:[e.jsx("div",{style:{width:"52px",height:"52px",borderRadius:"14px",background:`${r.color}15`,display:"flex",alignItems:"center",justifyContent:"center",color:r.color,flexShrink:0},children:r.icon}),e.jsxs("div",{children:[e.jsx("div",{style:{fontSize:"13px",color:"var(--muted)",marginBottom:"2px"},children:r.label}),e.jsx("div",{style:{fontSize:"32px",fontWeight:"700",color:r.color,lineHeight:1},children:r.value})]})]},r.key))}),e.jsx("div",{style:{display:"flex",gap:"8px",marginBottom:"24px",flexWrap:"wrap"},children:[{key:"all",label:"Alle varsler",count:s.length},{key:"unread",label:"Uleste",count:n.unread},{key:"CRITICAL",label:"Kritiske",count:n.critical},{key:"WARNING",label:"Advarsler",count:n.warning},{key:"INFO",label:"Info",count:n.info}].map(r=&gt;e.jsxs("button",{onClick:()=&gt;h(r.key),style:{padding:"10px 18px",borderRadius:"100px",border:o===r.key?"none":"1px solid var(--border)",background:o===r.key?"linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)":"var(--card)",color:o===r.key?"white":"var(--foreground)",cursor:"pointer",fontWeight:"500",fontSize:"13px",display:"flex",alignItems:"center",gap:"8px",transition:"all 0.2s ease",boxShadow:o===r.key?"0 4px 12px rgba(59, 130, 246, 0.3)":"0 1px 3px rgba(0,0,0,0.04)"},children:[r.label,e.jsx("span",{style:{background:o===r.key?"rgba(255,255,255,0.25)":"var(--border)",padding:"2px 8px",borderRadius:"100px",fontSize:"11px",fontWeight:"600"},children:r.count})]},r.key))}),e.jsxs("div",{style:{display:"flex",flexDirection:"column",gap:"16px"},children:[f.map(r=&gt;{const i=b[r.severity]||b.INFO;return e.jsxs("div",{style:{background:"var(--card)",borderRadius:"16px",overflow:"hidden",border:"1px solid var(--border)",boxShadow:"0 1px 3px rgba(0,0,0,0.04)",opacity:r.acknowledgedAt?.7:1,transition:"all 0.2s ease"},children:[e.jsxs("div",{style:{background:i.gradient,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"},children:[e.jsxs("div",{style:{display:"flex",alignItems:"flex-start",gap:"14px"},children:[e.jsx("div",{style:{width:"44px",height:"44px",borderRadius:"12px",background:"rgba(255,255,255,0.2)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",flexShrink:0},children:I(r.alertType,r.severity)}),e.jsxs("div",{children:[e.jsx("h3",{style:{margin:0,fontWeight:"600",color:"white",fontSize:"16px",lineHeight:1.3},children:r.title}),e.jsxs("div",{style:{fontSize:"13px",color:"rgba(255,255,255,0.85)",marginTop:"4px",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"},children:[r.merdName&amp;&amp;e.jsxs(e.Fragment,{children:[e.jsx("span",{style:{background:"rgba(255,255,255,0.15)",padding:"2px 8px",borderRadius:"6px",fontSize:"12px"},children:r.merdName}),e.jsx("span",{style:{opacity:.6},children:"•"})]}),e.jsx("span",{children:r.locality}),e.jsx("span",{style:{opacity:.6},children:"•"}),e.jsx("span",{children:y(r.createdAt)})]})]})]}),e.jsxs("div",{style:{display:"flex",gap:"8px",flexShrink:0},children:[!r.isRead&amp;&amp;e.jsx("span",{style:{background:"white",color:i.color,padding:"5px 12px",borderRadius:"100px",fontSize:"11px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"0.5px"},children:"Ny"}),e.jsx("span",{style:{background:"rgba(255,255,255,0.2)",backdropFilter:"blur(10px)",padding:"5px 12px",borderRadius:"100px",fontSize:"11px",fontWeight:"600",color:"white",textTransform:"uppercase",letterSpacing:"0.5px"},children:i.label})]})]}),e.jsxs("div",{style:{padding:"20px"},children:[e.jsx("p",{style:{margin:"0 0 16px 0",lineHeight:"1.7",color:"var(--foreground)",fontSize:"14px"},children:r.message}),r.recommendedAction&amp;&amp;e.jsxs("div",{style:{background:i.bgLight,borderRadius:"12px",padding:"16px",marginBottom:"16px",display:"flex",gap:"14px",alignItems:"flex-start"},children:[e.jsx("div",{style:{width:"32px",height:"32px",borderRadius:"8px",background:i.color,display:"flex",alignItems:"center",justifyContent:"center",color:"white",flexShrink:0},children:e.jsx("svg",{width:"16",height:"16",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2.5",children:e.jsx("path",{d:"M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"})})}),e.jsxs("div",{children:[e.jsx("div",{style:{fontSize:"11px",color:i.color,fontWeight:"700",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.5px"},children:"Anbefalt handling"}),e.jsx("div",{style:{fontSize:"14px",color:"var(--foreground)",lineHeight:1.5},children:r.recommendedAction})]})]}),e.jsxs("div",{style:{display:"flex",gap:"10px",alignItems:"center",flexWrap:"wrap"},children:[!r.isRead&amp;&amp;e.jsxs("button",{onClick:()=&gt;w(r.id),style:{padding:"10px 18px",borderRadius:"10px",border:"1px solid var(--border)",background:"transparent",color:"var(--foreground)",cursor:"pointer",fontSize:"13px",fontWeight:"500",transition:"all 0.2s ease",display:"flex",alignItems:"center",gap:"6px"},children:[e.jsxs("svg",{width:"16",height:"16",vi</span></span>ewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2",children:[e.jsx("path",{d:"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"}),e.jsx("circle",{cx:"12",cy:"12",r:"3"})]}),"Marker som lest"]}),!r.acknowledgedAt&amp;&amp;e.jsxs("button",{onClick:()=&gt;S(r.id),style:{padding:"10px 18px",borderRadius:"10px",border:"none",background:"linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",color:"white",cursor:"pointer",fontSize:"13px",fontWeight:"500",transition:"all 0.2s ease",boxShadow:"0 2px 8px rgba(59, 130, 246, 0.25)",display:"flex",alignItems:"center",gap:"6px"},children:[t.check,"Bekreft mottatt"]}),r.acknowledgedAt&amp;&amp;e.jsxs("div",{style:{display:"flex",alignItems:"center",gap:"6px",color:"#22c55e",fontSize:"13px",fontWeight:"500"},children:[e.jsxs("svg",{width:"18",height:"18",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:"2.5",children:[e.jsx("path",{d:"M22 11.08V12a10 10 0 1 1-5.93-9.14"}),e.jsx("polyline",{points:"22 4 12 14.01 9 11.01"})]}),"Bekreftet ",y(r.acknowledgedAt)]})]})]})]},r.id)}),f.length===0&amp;&amp;e.jsxs("div",{style:{padding:"80px 40px",textAlign:"center",background:"var(--card)",borderRadius:"20px",border:"1px solid var(--border)"},children:[e.jsx("div",{style:{width:"80px",height:"80px",borderRadius:"20px",background:"linear-gradient(135deg, #22c55e15 0%, #16a34a15 100%)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px auto"},children:e.jsxs("svg",{width:"40",height:"40",viewBox:"0 0 24 24",fill:"none",stroke:"#22c55e",strokeWidth:"2",children:[e.jsx("path",{d:"M22 11.08V12a10 10 0 1 1-5.93-9.14"}),e.jsx("polyline",{points:"22 4 12 14.01 9 11.01"})]})}),e.jsx("h3",{style:{margin:"0 0 8px 0",fontSize:"20px",fontWeight:"600",color:"var(--foreground)"},children:"Ingen varsler"}),e.jsx("p",{style:{margin:0,fontSize:"14px",color:"var(--muted)",maxWidth:"300px",marginLeft:"auto",marginRight:"auto"},children:"Alt ser bra ut! Du har ingen aktive varsler for øyeblikket."})]})]})]})}export{A as default};</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-11T16:07:30.331Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

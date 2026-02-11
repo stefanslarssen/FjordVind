@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 import { fetchLiceCounts, fetchLocations, updateSample, deleteSample } from '../services/supabase'
 import { useLanguage } from '../contexts/LanguageContext'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-
 export default function HistoryPage() {
   const { t } = useLanguage()
   const [counts, setCounts] = useState([])
@@ -603,7 +601,7 @@ export default function HistoryPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={`${API_URL}${viewingImages[selectedImageIndex]?.url || viewingImages[selectedImageIndex]}`}
+              src={`${viewingImages[selectedImageIndex]?.url || viewingImages[selectedImageIndex]}`}
               alt={`${t('history.image')} ${selectedImageIndex + 1}`}
               style={{
                 maxWidth: '100%',
@@ -709,7 +707,7 @@ export default function HistoryPage() {
                   }}
                 >
                   <img
-                    src={`${API_URL}${img?.url || img}`}
+                    src={`${img?.url || img}`}
                     alt={`${t('history.image')} ${idx + 1}`}
                     style={{
                       width: '100%',

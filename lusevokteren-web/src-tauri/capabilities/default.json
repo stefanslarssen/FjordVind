@@ -13,7 +13,10 @@
     "core:window:allow-maximize",
     "core:window:allow-set-title",
     "core:app:allow-version",
+    "log:default",
     "http:default",
+    "http:allow-fetch-read-body",
+    "http:allow-fetch-cancel",
     {
       "identifier": "http:allow-fetch",
       "allow": [
