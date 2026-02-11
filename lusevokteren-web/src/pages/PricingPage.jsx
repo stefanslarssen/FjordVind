@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { redirectToCheckout } from '../services/stripe'
 
 const PLANS = [
   {
@@ -91,12 +92,37 @@ export default function PricingPage() {
     }).format(price)
   }
 
-  const handleSelectPlan = (planId) => {
-    // Alle planer går til kontaktskjema - fakturering håndteres manuelt
+  const [loading, setLoading] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleSelectPlan = async (planId) => {
     const plan = PLANS.find(p => p.id === planId)
-    const period = billingPeriod === 'yearly' ? 'årlig' : 'månedlig'
-    const subject = encodeURIComponent(`Forespørsel: ${plan.name} (${period})`)
-    window.location.href = `mailto:salg@fjordvind.no?subject=${subject}`
+
+    // Enterprise plans go to contact form
+    if (planId === 'enterprise') {
+      const period = billingPeriod === 'yearly' ? 'årlig' : 'månedlig'
+      const subject = encodeURIComponent(`Forespørsel: ${plan.name} (${period})`)
+      window.location.href = `mailto:salg@fjordvind.no?subject=${subject}`
+      return
+    }
+
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      navigate('/login?redirect=/priser')
+      return
+    }
+
+    // Start Stripe checkout
+    setLoading(planId)
+    setError(null)
+
+    try {
+      await redirectToCheckout(planId, billingPeriod === 'yearly' ? 'yearly' : 'monthly')
+    } catch (err) {
+      console.error('Checkout error:', err)
+      setError(err.message || 'Noe gikk galt. Prøv igjen eller kontakt support.')
+      setLoading(null)
+    }
   }
 
   return (
@@ -184,6 +210,21 @@ export default function PricingPage() {
               </span>
             </button>
           </div>
+
+          {/* Error message */}
+          {error && (
+            <div style={{
+              marginTop: '24px',
+              padding: '12px 20px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '8px',
+              color: '#ef4444',
+              fontSize: '14px',
+            }}>
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Pricing cards */}
@@ -263,6 +304,7 @@ export default function PricingPage() {
 
               <button
                 onClick={() => handleSelectPlan(plan.id)}
+                disabled={loading === plan.id}
                 style={{
                   width: '100%',
                   padding: '14px',
@@ -272,12 +314,13 @@ export default function PricingPage() {
                   color: plan.popular ? 'white' : 'var(--text-primary)',
                   fontSize: '16px',
                   fontWeight: '500',
-                  cursor: 'pointer',
+                  cursor: loading === plan.id ? 'wait' : 'pointer',
                   marginBottom: '24px',
                   transition: 'all 0.2s',
+                  opacity: loading === plan.id ? 0.7 : 1,
                 }}
               >
-                Kontakt oss
+                {loading === plan.id ? 'Vennligst vent...' : (plan.id === 'enterprise' ? 'Kontakt oss' : 'Velg plan')}
               </button>
 
               <ul style={{
