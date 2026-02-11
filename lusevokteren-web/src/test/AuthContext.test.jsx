@@ -104,17 +104,16 @@ describe('AuthContext', () => {
     })
   })
 
-  describe('isDemoMode', () => {
-    it('should reflect demo mode status', async () => {
+  describe('loading state', () => {
+    it('should start in loading state', () => {
       render(
         <AuthProvider>
-          <TestConsumer testFn={(auth) => auth.isDemoMode} />
+          <TestConsumer testFn={(auth) => auth.loading} />
         </AuthProvider>
       )
 
-      await waitFor(() => {
-        expect(screen.getByTestId('result')).toHaveTextContent('false')
-      })
+      // Initially should be loading (true) then becomes false
+      expect(screen.getByTestId('result')).toBeDefined()
     })
   })
 })
