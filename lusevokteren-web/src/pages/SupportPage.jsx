@@ -103,12 +103,12 @@ export default function SupportPage() {
       {/* Contact Options */}
       <div className="grid md:grid-cols-3 gap-4 mb-8">
         <a
-          href="mailto:support@fjordvind.no"
+          href="mailto:support@nordfjordsolutions.no"
           className="flex flex-col items-center p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors text-center"
         >
           <EnvelopeIcon className="h-10 w-10 text-blue-600 dark:text-blue-400 mb-3" />
           <h3 className="font-semibold text-gray-900 dark:text-white mb-1">E-post</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300">support@fjordvind.no</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">support@nordfjordsolutions.no</p>
           <p className="text-xs text-gray-500 mt-2">Svar innen 24 timer</p>
         </a>
 

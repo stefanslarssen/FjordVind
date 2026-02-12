@@ -64,10 +64,11 @@ lusevokteren-web/
 
 ## Kontakt
 
-- **Support**: support@fjordvind.no
-- **Utvikling**: dev@fjordvind.no
-- **Salg**: salg@fjordvind.no
+- **Support**: support@nordfjordsolutions.no
+- **Utvikling**: dev@nordfjordsolutions.no
+- **Salg**: salg@nordfjordsolutions.no
 
 ---
 
 *FjordVind - Profesjonell luseovervåking for norsk oppdrettsnæring*
+*Et produkt fra NordFjord Solutions AS*

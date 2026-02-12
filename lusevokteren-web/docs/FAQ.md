@@ -116,7 +116,7 @@ Ja, norsk (bokmål) og engelsk er tilgjengelig. Gå til Innstillinger → Språk
 ## Kontakt
 
 ### Hvordan kontakter jeg support?
-- **E-post**: support@fjordvind.no
+- **E-post**: support@nordfjordsolutions.no
 - **Telefon**: +47 XXX XX XXX (man-fre 08-16)
 - **Chat**: Klikk på chat-ikonet i appen
 
@@ -131,4 +131,4 @@ Følg oss på [LinkedIn](https://linkedin.com/company/fjordvind) eller sjekk blo
 
 ---
 
-*Fant du ikke svaret? Kontakt oss på support@fjordvind.no*
+*Fant du ikke svaret? Kontakt oss på support@nordfjordsolutions.no*

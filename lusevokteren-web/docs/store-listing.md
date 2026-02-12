@@ -140,16 +140,16 @@ Total lengde: 30 sekunder
 
 ## Personvernerklæring
 
-URL: https://fjordvind.no/personvern
+URL: https://nordfjordsolutions.no/personvern
 
 ## Brukervilkår
 
-URL: https://fjordvind.no/vilkar
+URL: https://nordfjordsolutions.no/vilkar
 
 ## Support
 
-- E-post: support@fjordvind.no
-- Nettside: https://fjordvind.no/support
+- E-post: support@nordfjordsolutions.no
+- Nettside: https://nordfjordsolutions.no/support
 
 ---
 

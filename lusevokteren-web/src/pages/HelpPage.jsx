@@ -209,13 +209,13 @@ export default function HelpPage() {
 
         <div className="grid md:grid-cols-2 gap-4">
           <a
-            href="mailto:support@fjordvind.no"
+            href="mailto:support@nordfjordsolutions.no"
             className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg hover:shadow-md transition-shadow"
           >
             <EnvelopeIcon className="h-6 w-6 text-blue-600" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">E-post</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">support@fjordvind.no</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">support@nordfjordsolutions.no</div>
             </div>
           </a>
 

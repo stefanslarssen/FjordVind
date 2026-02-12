@@ -212,7 +212,7 @@ serve(async (req) => {
     },
     body: JSON.stringify({
       personalizations: [{
-        to: [{ email: 'support@fjordvind.no' }]
+        to: [{ email: 'support@nordfjordsolutions.no' }]
       }],
       from: { email: 'noreply@fjordvind.no', name: 'FjordVind Support' },
       subject: `[${priority.toUpperCase()}] Ny support-henvendelse: ${subject}`,
@@ -292,7 +292,7 @@ if (SLACK_WEBHOOK) {
 ```
 1. Bruker sender henvendelse
        ↓
-2. Automatisk e-post til support@fjordvind.no
+2. Automatisk e-post til support@nordfjordsolutions.no
        ↓
 3. Slack-varsel i #support-kanal
        ↓
@@ -336,4 +336,4 @@ if (SLACK_WEBHOOK) {
 
 ## Kontakt
 
-Tekniske spørsmål: dev@fjordvind.no
+Tekniske spørsmål: dev@nordfjordsolutions.no

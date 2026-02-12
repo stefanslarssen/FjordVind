@@ -403,7 +403,7 @@ Hvis du er administrator kan du:
 ## 11. Kontakt support
 
 ### E-post
-support@fjordvind.no
+support@nordfjordsolutions.no
 
 ### Telefon
 +47 XXX XX XXX (man-fre 08-16)
