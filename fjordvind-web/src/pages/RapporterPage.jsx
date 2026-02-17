@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchLocations } from '../services/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { downloadTextFile, downloadBinaryFile, openPrintWindow } from '../utils/fileDownload'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -200,7 +201,7 @@ export default function RapporterPage() {
   }
 
   // Download functions
-  function downloadTxt(report) {
+  async function downloadTxt(report) {
     let content = `FjordVind - ${report.name}\n`
     content += `Generert: ${report.date}\n`
     content += `${'='.repeat(50)}\n\n`
@@ -218,16 +219,11 @@ export default function RapporterPage() {
       content += 'Ingen data tilgjengelig for denne rapporten.\n'
     }
 
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${report.name.replace(/\s+/g, '_')}_${report.date}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = `${report.name.replace(/\s+/g, '_')}_${report.date}.txt`
+    await downloadTextFile(content, filename, 'text/plain')
   }
 
-  function downloadExcel(report) {
+  async function downloadExcel(report) {
     let csvContent = ''
 
     if (report.data && Array.isArray(report.data) && report.data.length > 0) {
@@ -241,14 +237,8 @@ export default function RapporterPage() {
       csvContent = 'Ingen data\n'
     }
 
-    const BOM = '\uFEFF'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${report.name.replace(/\s+/g, '_')}_${report.date}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = `${report.name.replace(/\s+/g, '_')}_${report.date}.csv`
+    await downloadTextFile(csvContent, filename, 'text/csv')
   }
 
   function downloadPdf(report) {
@@ -281,9 +271,7 @@ export default function RapporterPage() {
       <script>window.onload = function() { window.print(); }</script>
     </body></html>`
 
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(html)
-    printWindow.document.close()
+    openPrintWindow(html)
   }
 
   function deleteReport(id) {
@@ -322,9 +310,6 @@ export default function RapporterPage() {
 
       // Download the PDF
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
 
       const filename = reportType === 'mattilsynet'
         ? `Mattilsynet_Rapport_${new Date().toISOString().split('T')[0]}.pdf`
@@ -332,9 +317,7 @@ export default function RapporterPage() {
           ? `Behandlingsrapport_${new Date().toISOString().split('T')[0]}.pdf`
           : `Luserapport_${new Date().toISOString().split('T')[0]}.pdf`
 
-      a.download = filename
-      a.click()
-      URL.revokeObjectURL(url)
+      await downloadBinaryFile(blob, filename)
     } catch (error) {
       console.error('Failed to download server PDF:', error)
       alert('Kunne ikke laste ned rapport fra server. Prøv klient-generert PDF i stedet.')
@@ -554,13 +537,11 @@ export default function RapporterPage() {
 </body>
 </html>`
 
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(html)
-    printWindow.document.close()
+    openPrintWindow(html)
   }
 
   // Mattilsynet Excel-eksport (CSV med spesifikt format)
-  function downloadMattilsynetExcel(report) {
+  async function downloadMattilsynetExcel(report) {
     const currentWeek = getWeekNumber(new Date(report.date))
     const year = new Date(report.date).getFullYear()
     const liceData = report.data?.samples || report.data || []
@@ -598,14 +579,8 @@ export default function RapporterPage() {
     csv += `Snitt voksne hunnlus;${avgAdult}\n`
     csv += `Status;${parseFloat(avgAdult) >= 0.5 ? 'OVER GRENSE - TILTAK PÅKREVD' : parseFloat(avgAdult) >= 0.2 ? 'ADVARSEL' : 'OK'}\n`
 
-    const BOM = '\uFEFF'
-    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Mattilsynet_Uke${currentWeek}_${year}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = `Mattilsynet_Uke${currentWeek}_${year}.csv`
+    await downloadTextFile(csv, filename, 'text/csv')
   }
 
   // Hjelpefunksjon for ukenummer
