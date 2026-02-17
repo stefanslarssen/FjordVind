@@ -10,17 +10,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: lusevokteren-db
+    container_name: fjordvind-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-lusevokteren}
+      POSTGRES_DB: ${POSTGRES_DB:-fjordvind}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD må settes i .env}
     ports:
       - "${DB_EXTERNAL_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./lusevokteren-backend/supabase/migrations:/docker-entrypoint-initdb.d:ro
+      - ./fjordvind-backend/supabase/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -29,8 +29,8 @@ services:
 
   # Backend API
   api:
-    build: ./lusevokteren-api
-    container_name: lusevokteren-api
+    build: ./fjordvind-api
+    container_name: fjordvind-api
     restart: unless-stopped
     ports:
       - "${API_PORT:-3000}:3000"
@@ -41,7 +41,7 @@ services:
       PORT: 3000
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:-lusevokteren}
+      DB_NAME: ${POSTGRES_DB:-fjordvind}
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD må settes i .env}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET må settes i .env}
@@ -54,9 +54,9 @@ services:
   # Web Frontend
   web:
     build:
-      context: ./lusevokteren-web
+      context: ./fjordvind-web
       dockerfile: Dockerfile
-    container_name: lusevokteren-web
+    container_name: fjordvind-web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
@@ -72,7 +72,7 @@ services:
   # ============================================================
   adminer:
     image: adminer:latest
-    container_name: lusevokteren-adminer
+    container_name: fjordvind-adminer
     restart: unless-stopped
     ports:
       - "${ADMINER_PORT:-8080}:8080"

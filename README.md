@@ -1,52 +1,55 @@
-~~~~# 🐟 Lusevokteren - Lakseoppdrett Lusetelling System
+# FjordVind - Lakseoppdrett Overvåkingssystem
 
 Komplett system for registrering og overvåking av lakselus i norsk oppdrettsindustri.
 
-## 📋 Innhold
+## Innhold
 
 - **Backend:** PostgreSQL database med Supabase
+- **API:** Node.js/Express REST API
 - **Frontend:** React web-applikasjon
+- **Mobilapp:** React Native (Expo)
 - **Docker:** Alt-i-ett løsning med Docker Compose
 
 ---
 
-## 🚀 Kom i gang
+## Kom i gang
 
 ### Forutsetninger
 
 1. **Docker Desktop** - [Last ned her](https://www.docker.com/products/docker-desktop/)
-2. **Git** (valgfritt)
+2. **Node.js 18+** - For lokal utvikling
+3. **Git** (valgfritt)
 
-### Installasjon
+### Installasjon med Docker
 
 #### Steg 1: Start Docker Desktop
 Åpne Docker Desktop og la det kjøre i bakgrunnen.
 
 #### Steg 2: Start hele systemet
-Åpne terminal/PowerShell i prosjektmappen og kjør:
-
 ```bash
 docker-compose up -d
 ```
 
 Dette starter:
-- ✅ PostgreSQL database (port 5432)
-- ✅ Web frontend (http://localhost)
-- ✅ Adminer database UI (http://localhost:8080)
+- PostgreSQL database (port 5432)
+- Web frontend (http://localhost)
+- API server (http://localhost:3000)
+- Adminer database UI (http://localhost:8080)
 
 #### Steg 3: Sjekk at alt kjører
 ```bash
 docker-compose ps
 ```
 
-Du skal se tre containere som kjører:
-- `lusevokteren-db` (PostgreSQL)
-- `lusevokteren-web` (Frontend)
-- `lusevokteren-adminer` (Database UI)
+Du skal se containere som kjører:
+- `fjordvind-db` (PostgreSQL)
+- `fjordvind-web` (Frontend)
+- `fjordvind-api` (API)
+- `fjordvind-adminer` (Database UI)
 
 ---
 
-## 🌐 Tilgang til systemet
+## Tilgang til systemet
 
 ### Web Frontend
 Åpne nettleseren: **http://localhost**
@@ -55,6 +58,14 @@ Sider:
 - `/` - Dashboard med statistikk og grafer
 - `/history` - Historikk over alle tellinger
 - `/locations` - Oversikt over lokaliteter
+- `/ny-telling` - Registrer ny lusetelling
+- `/dodelighet` - Dødelighetsregistrering
+- `/rapporter` - Generer rapporter
+
+### API
+Base URL: **http://localhost:3000/api**
+
+Dokumentasjon: **http://localhost:3000/api/docs**
 
 ### Database Management (Adminer)
 Åpne nettleseren: **http://localhost:8080**
@@ -64,27 +75,66 @@ Logg inn:
 - **Server:** postgres
 - **Username:** postgres
 - **Password:** postgres
-- **Database:** lusevokteren
+- **Database:** fjordvind
 
 ---
 
-## 📊 Database Schema
+## Database Schema
 
 ### Tabeller:
 - **users** - Brukere (røktere, driftsledere, admins)
+- **companies** - Selskaper (multi-tenant)
 - **merds** - Merder/oppdrettsenheter
 - **samples** - Lusetellinger/prøvetakinger
 - **fish_observations** - Individuelle fiskeobservasjoner
-- **compliance_log** - Behandlingslogg
-
-### Views:
-- **sample_summaries** - Aggregert telledata
-- **merd_latest_counts** - Siste tellinger per merd
-- **merd_compliance_status** - Compliance-status
+- **mortality** - Dødelighetsregistreringer
+- **treatments** - Behandlinger
+- **alerts** - Varsler
+- **predictions** - AI-prognoser
+- **environment_readings** - Miljødata
+- **images** - Bilder
 
 ---
 
-## 🛠️ Nyttige kommandoer
+## Prosjektstruktur
+
+```
+fjordvind/
+├── docker-compose.yml           # Docker Compose konfigurasjon
+├── .env                         # Miljøvariabler
+├── README.md                    # Denne filen
+├── supabase-setup.sql           # Database schema
+│
+├── fjordvind-api/               # REST API (Node.js/Express)
+│   ├── routes/                  # API endpoints
+│   ├── middleware/              # Auth, validation
+│   ├── services/                # Business logic
+│   └── server.js                # Entry point
+│
+├── fjordvind-web/               # Frontend (React/Vite)
+│   ├── src/
+│   │   ├── pages/               # Sider
+│   │   ├── components/          # UI-komponenter
+│   │   ├── services/            # API-kall
+│   │   └── contexts/            # React contexts
+│   └── index.html
+│
+├── fjordvind-expo/              # Mobilapp (React Native)
+│   ├── src/
+│   │   ├── screens/             # Skjermer
+│   │   ├── services/            # API-kall
+│   │   └── contexts/            # Auth context
+│   └── App.tsx
+│
+└── fjordvind-backend/           # Supabase konfigurasjon
+    └── supabase/
+        ├── migrations/          # Database migrasjoner
+        └── functions/           # Edge functions
+```
+
+---
+
+## Nyttige kommandoer
 
 ### Start systemet
 ```bash
@@ -99,160 +149,86 @@ docker-compose down
 ### Se logger
 ```bash
 docker-compose logs -f
-```
-
-### Se logger for spesifikk tjeneste
-```bash
+docker-compose logs -f api
 docker-compose logs -f web
-docker-compose logs -f postgres
 ```
 
-### Restart en tjeneste
+### Kjør database migrasjoner
 ```bash
-docker-compose restart web
-```
-
-### Kjør database migrasjoner manuelt
-```bash
-docker-compose exec postgres psql -U postgres -d lusevokteren -f /docker-entrypoint-initdb.d/20240102000000_v2_schema.sql
+docker-compose exec postgres psql -U postgres -d fjordvind -f /docker-entrypoint-initdb.d/supabase-setup.sql
 ```
 
 ### Koble til PostgreSQL direkte
 ```bash
-docker-compose exec postgres psql -U postgres -d lusevokteren
-```
-
-### Stopp og fjern alt (inkludert data!)
-```bash
-docker-compose down -v
-```
-⚠️ **ADVARSEL:** Dette sletter all data!
-
----
-
-## 📁 Prosjektstruktur
-
-```
-lusevokteren/
-├── docker-compose.yml           # Docker Compose konfigurasjon
-├── .env                         # Miljøvariabler
-├── README.md                    # Denne filen
-│
-├── lusevokteren-backend/        # Backend (Supabase)
-│   └── supabase/
-│       ├── migrations/          # Database migrasjoner
-│       └── functions/           # Edge functions
-│
-└── lusevokteren-web/            # Frontend (React)
-    ├── src/
-    ├── Dockerfile               # Docker konfigurasjon
-    ├── nginx.conf               # Nginx konfigurasjon
-    └── .env                     # Frontend miljøvariabler
+docker-compose exec postgres psql -U postgres -d fjordvind
 ```
 
 ---
 
-## 🔧 Konfigurasjon
+## Konfigurasjon
 
 ### Environment Variables
 
-Rediger `.env` filen for å endre konfigurasjon:
+Rediger `.env` filen:
 
 ```env
 # Database
-POSTGRES_DB=lusevokteren
+POSTGRES_DB=fjordvind
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 
-# Web Frontend
-VITE_SUPABASE_URL=http://localhost:54321
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
+# API
+JWT_SECRET=your-secret-key
+PORT=3000
+
+# Frontend
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_API_URL=http://localhost:3000
 ```
 
 ---
 
-## 💾 Backup og Restore
+## Status
 
-### Backup database
-```bash
-docker-compose exec postgres pg_dump -U postgres lusevokteren > backup.sql
-```
-
-### Restore database
-```bash
-cat backup.sql | docker-compose exec -T postgres psql -U postgres lusevokteren
-```
-
----
-
-## 🐛 Feilsøking
-
-### Problem: Port allerede i bruk
-Hvis port 80, 5432 eller 8080 er opptatt:
-
-**Løsning 1:** Stopp tjenesten som bruker porten
-**Løsning 2:** Endre porter i `docker-compose.yml`
-
-```yaml
-ports:
-  - "8000:80"  # Endre fra 80 til 8000
-```
-
-### Problem: Container starter ikke
-```bash
-# Se detaljerte logger
-docker-compose logs web
-docker-compose logs postgres
-
-# Restart containere
-docker-compose restart
-```
-
-### Problem: Database tom etter oppstart
-Sjekk at migrasjonene kjørte:
-```bash
-docker-compose logs postgres | grep migration
-```
-
-Kjør migrasjoner manuelt hvis nødvendig:
-```bash
-docker-compose exec postgres psql -U postgres -d lusevokteren -f /docker-entrypoint-initdb.d/20240102000000_v2_schema.sql
-```
-
----
-
-## 📈 MVP Status
-
-### ✅ Ferdig
+### Ferdig
 - Database schema og migrasjoner
-- PostgreSQL med Docker
-- Web frontend med React
-- Dashboard med visualisering
-- Historikk og filtrering
-- Docker Compose setup
-
-### ⚠️ Under utvikling
-- Brukerautentisering
-- Registrering av nye tellinger
-- Tilgangskontroll (RLS policies)
+- Brukerautentisering (JWT + Supabase Auth)
+- REST API med 20+ endpoints
+- Web frontend med 26 sider
+- Lusetelling med fiskeobservasjoner
+- Dødelighetsregistrering
+- Behandlingsplanlegging
+- Varsler og notifications
 - Bildeopplasting
-- API for mobilapp
+- Prognoser og risikoscorer
+- Miljødata
+- Rapportgenerering (PDF)
+- RLS policies (Row Level Security)
+- Docker Compose setup
+- Expo mobilapp struktur
+
+### Under utvikling
+- Expo mobilapp screens
+- Push notifications
+- Barentswatch API-integrasjon
+- AI-baserte prognoser
 
 ---
 
-## 📞 Support
+## Demo-brukere
 
-Hvis du har problemer eller spørsmål, sjekk:
-1. Docker Desktop kjører
-2. Ingen andre tjenester bruker portene
-3. `.env` filen er konfigurert riktig
-
----
-
-## 📄 Lisens
-
-Dette er et internt prosjekt for lakseoppdrett.
+For testing kan du bruke:
+- **admin@fjordvind.no** / admin123
+- **leder@fjordvind.no** / leder123
+- **rokter@fjordvind.no** / rokter123
 
 ---
 
-**Laget med ❤️ for norsk akvakultur** 🐟
+## Lisens
+
+Proprietært - FjordVind AS
+
+---
+
+**Beskytter Norges kyst**

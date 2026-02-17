@@ -1,5 +1,5 @@
 -- ============================================
--- LUSEVOKTEREN KOMPLETT DATABASE SETUP
+-- FJORDVIND KOMPLETT DATABASE SETUP
 -- Kjør denne i Supabase SQL Editor
 -- ============================================
 
@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS samples (
   tidspunkt TIME,
   antall_fisk INTEGER NOT NULL CHECK (antall_fisk > 0),
   temperatur DECIMAL(4, 1),
+  dodfisk INTEGER DEFAULT 0 CHECK (dodfisk >= 0),
   notat TEXT,
   voice_note_url TEXT,
   synced BOOLEAN DEFAULT false,
@@ -258,6 +259,78 @@ CREATE TABLE IF NOT EXISTS risk_scores (
   factors JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================
+-- 11. MORTALITY / DØDELIGHET
+-- ============================================
+CREATE TABLE IF NOT EXISTS mortality (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  merd_id UUID NOT NULL REFERENCES merds(id) ON DELETE CASCADE,
+  dato DATE NOT NULL,
+  antall_dod INTEGER NOT NULL CHECK (antall_dod >= 0),
+  arsak TEXT CHECK (arsak IN (
+    'ukjent', 'sykdom', 'behandling', 'håndtering', 'predator',
+    'oksygenmangel', 'temperatur', 'algeoppblomstring', 'annet'
+  )),
+  notat TEXT,
+  registrert_av UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mortality_merd ON mortality(merd_id);
+CREATE INDEX IF NOT EXISTS idx_mortality_dato ON mortality(dato DESC);
+
+-- Mortality: Company isolation via merd
+ALTER TABLE mortality ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "mortality_company_isolation" ON mortality FOR ALL
+  USING (
+    merd_id IN (
+      SELECT id FROM merds
+      WHERE company_id IS NULL OR company_id = get_current_company_id()
+    )
+    OR is_admin()
+  );
+
+-- ============================================
+-- 12. IMAGES (for fish observations, samples, treatments)
+-- ============================================
+CREATE TABLE IF NOT EXISTS images (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  filename TEXT NOT NULL,
+  original_name TEXT,
+  mimetype TEXT NOT NULL,
+  size_bytes INTEGER,
+  url TEXT NOT NULL,
+  sample_id UUID REFERENCES samples(id) ON DELETE CASCADE,
+  observation_id UUID REFERENCES fish_observations(id) ON DELETE CASCADE,
+  treatment_id UUID REFERENCES treatments(id) ON DELETE CASCADE,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_images_sample ON images(sample_id);
+CREATE INDEX IF NOT EXISTS idx_images_observation ON images(observation_id);
+CREATE INDEX IF NOT EXISTS idx_images_treatment ON images(treatment_id);
+
+-- Images: Company isolation via sample/treatment
+ALTER TABLE images ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "images_company_isolation" ON images FOR ALL
+  USING (
+    sample_id IN (
+      SELECT s.id FROM samples s
+      JOIN merds m ON s.merd_id = m.id
+      WHERE m.company_id IS NULL OR m.company_id = get_current_company_id()
+    )
+    OR treatment_id IN (
+      SELECT t.id FROM treatments t
+      JOIN merds m ON t.merd_id = m.id
+      WHERE m.company_id IS NULL OR m.company_id = get_current_company_id()
+    )
+    OR is_admin()
+  );
 
 -- ============================================
 -- INDEXES
@@ -485,44 +558,7 @@ CREATE POLICY "risk_scores_company_isolation" ON risk_scores FOR ALL
   );
 
 -- ============================================
--- SAMPLE DATA
+-- NO SAMPLE DATA - Start with empty database
 -- ============================================
-
--- Users
-INSERT INTO users (id, email, full_name, role) VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'ola.nordmann@fjordvind.no', 'Ola Nordmann', 'røkter'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'kari.hansen@fjordvind.no', 'Kari Hansen', 'røkter'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'per.olsen@fjordvind.no', 'Per Olsen', 'driftsleder')
-ON CONFLICT (email) DO NOTHING;
-
--- Merds
-INSERT INTO merds (id, merd_id, lokalitet, lokalitetsnummer, navn, latitude, longitude) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'NF-A1', 'Nordfjorden', '12345', 'Merd A1', 61.9054, 5.0892),
-  ('22222222-2222-2222-2222-222222222222', 'NF-A2', 'Nordfjorden', '12345', 'Merd A2', 61.9064, 5.0912),
-  ('33333333-3333-3333-3333-333333333333', 'NF-B1', 'Nordfjorden', '12345', 'Merd B1', 61.9044, 5.0872),
-  ('44444444-4444-4444-4444-444444444444', 'HF-M1', 'Hardangerfjorden', '67890', 'Merd M1', 60.0783, 6.5494),
-  ('55555555-5555-5555-5555-555555555555', 'HF-M2', 'Hardangerfjorden', '67890', 'Merd M2', 60.0793, 6.5514)
-ON CONFLICT (merd_id) DO NOTHING;
-
--- Predictions
-INSERT INTO predictions (merd_id, target_date, days_ahead, current_lice, predicted_lice, confidence, probability_exceed_limit, risk_level, recommended_action) VALUES
-  ('11111111-1111-1111-1111-111111111111', CURRENT_DATE + INTERVAL '7 days', 7, 0.42, 0.58, 0.85, 0.78, 'HIGH', 'SCHEDULE_TREATMENT'),
-  ('22222222-2222-2222-2222-222222222222', CURRENT_DATE + INTERVAL '7 days', 7, 0.35, 0.45, 0.80, 0.45, 'MEDIUM', 'MONITOR'),
-  ('33333333-3333-3333-3333-333333333333', CURRENT_DATE + INTERVAL '7 days', 7, 0.22, 0.28, 0.82, 0.15, 'LOW', 'NO_ACTION'),
-  ('44444444-4444-4444-4444-444444444444', CURRENT_DATE + INTERVAL '7 days', 7, 0.38, 0.52, 0.78, 0.65, 'MEDIUM', 'SCHEDULE_TREATMENT');
-
--- Risk scores
-INSERT INTO risk_scores (merd_id, locality, overall_score, lice_score, mortality_score, environment_score, treatment_score, risk_level) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'Nordfjorden', 65, 75, 40, 85, 60, 'HIGH'),
-  ('22222222-2222-2222-2222-222222222222', 'Nordfjorden', 45, 55, 35, 90, 40, 'MODERATE'),
-  ('33333333-3333-3333-3333-333333333333', 'Nordfjorden', 25, 30, 30, 88, 20, 'LOW'),
-  ('44444444-4444-4444-4444-444444444444', 'Hardangerfjorden', 55, 60, 45, 75, 50, 'MODERATE'),
-  ('55555555-5555-5555-5555-555555555555', 'Hardangerfjorden', 30, 35, 40, 78, 25, 'LOW');
-
--- Environment readings
-INSERT INTO environment_readings (merd_id, locality, temperature_celsius, oxygen_percent, salinity_ppt, ph, data_source) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'Nordfjorden', 8.2, 92, 34.2, 7.8, 'SENSOR'),
-  ('22222222-2222-2222-2222-222222222222', 'Nordfjorden', 8.1, 94, 34.1, 7.9, 'SENSOR'),
-  ('44444444-4444-4444-4444-444444444444', 'Hardangerfjorden', 7.8, 89, 33.8, 8.0, 'SENSOR');
 
 SELECT 'Database setup complete!' as status;

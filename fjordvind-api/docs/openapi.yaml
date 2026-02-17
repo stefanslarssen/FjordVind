@@ -1,0 +1,1164 @@
+openapi: 3.0.3
+info:
+  title: FjordVind FjordVind API
+  description: |
+    REST API for sea lice monitoring in Norwegian aquaculture.
+
+    ## Authentication
+    Most endpoints require authentication via JWT Bearer token or httpOnly cookie.
+
+    **Header authentication:**
+    ```
+    Authorization: Bearer <your-token>
+    ```
+
+    **Cookie authentication:**
+    Tokens are automatically set as httpOnly cookies on login for browser clients.
+
+    ## Password Requirements
+    Passwords must meet the following complexity requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter (A-Z)
+    - At least one lowercase letter (a-z)
+    - At least one number (0-9)
+    - At least one special character (!@#$%^&*(),.?":{}|<>)
+
+    ## Token Revocation
+    Tokens are revoked on logout. Revoked tokens will receive a 401 response.
+
+    ## Demo Mode
+    In development (with DEMO_MODE=true), demo tokens are available:
+    - `demo_token_admin` - Admin access
+    - `demo_token_leder` - Operations manager (driftsleder)
+    - `demo_token_rokter` - Fish farmer (røkter)
+
+    **Note:** Demo mode is disabled in production.
+
+  version: 1.3.0
+  contact:
+    name: FjordVind Support
+    email: support@fjordvind.no
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.fjordvind.no
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Authentication and user management
+  - name: Samples
+    description: Lice count samples and fish observations
+  - name: Treatments
+    description: Treatment management
+  - name: Alerts
+    description: Alert system
+  - name: Mortality
+    description: Mortality tracking
+  - name: Environment
+    description: Environmental readings
+  - name: Locations
+    description: Location management
+  - name: Merds
+    description: Cage/merd management
+  - name: Dashboard
+    description: Dashboard statistics
+  - name: Predictions
+    description: Lice predictions and risk scores
+  - name: Notifications
+    description: Push notifications, SMS, and alert preferences
+  - name: Reports
+    description: PDF report generation for Mattilsynet and internal use
+  - name: Monitoring
+    description: System health, metrics, and status
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is running
+      tags: [System]
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  message:
+                    type: string
+                    example: FjordVind API is running
+
+  # ========== AUTH ==========
+  /api/auth/register:
+    post:
+      summary: Register new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '409':
+          description: User already exists
+
+  /api/auth/login:
+    post:
+      summary: Login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/auth/me:
+    get:
+      summary: Get current user
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated
+
+  /api/auth/refresh:
+    post:
+      summary: Refresh token
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: New token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  message:
+                    type: string
+
+  /api/auth/logout:
+    post:
+      summary: Logout
+      tags: [Auth]
+      responses:
+        '200':
+          description: Logged out
+
+  # ========== SAMPLES ==========
+  /api/samples:
+    get:
+      summary: List samples
+      tags: [Samples]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merd_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of samples
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  samples:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Sample'
+
+    post:
+      summary: Create sample
+      tags: [Samples]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSampleRequest'
+      responses:
+        '201':
+          description: Sample created
+        '400':
+          description: Validation error
+
+  /api/samples/{id}:
+    get:
+      summary: Get sample by ID
+      tags: [Samples]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sample data
+        '404':
+          description: Sample not found
+
+  # ========== TREATMENTS ==========
+  /api/treatments:
+    get:
+      summary: List treatments
+      tags: [Treatments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planlagt, pågår, fullført, kansellert]
+        - name: merd_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of treatments
+
+    post:
+      summary: Create treatment
+      tags: [Treatments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTreatmentRequest'
+      responses:
+        '201':
+          description: Treatment created
+
+  /api/treatments/{id}:
+    get:
+      summary: Get treatment by ID
+      tags: [Treatments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Treatment data
+        '404':
+          description: Treatment not found
+
+    put:
+      summary: Update treatment
+      tags: [Treatments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTreatmentRequest'
+      responses:
+        '200':
+          description: Treatment updated
+
+  # ========== ALERTS ==========
+  /api/alerts:
+    get:
+      summary: List alerts
+      tags: [Alerts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [INFO, WARNING, CRITICAL]
+        - name: is_read
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of alerts
+
+  /api/alerts/{id}/read:
+    post:
+      summary: Mark alert as read
+      tags: [Alerts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Alert marked as read
+
+  # ========== MORTALITY ==========
+  /api/mortality:
+    get:
+      summary: List mortality records
+      tags: [Mortality]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of mortality records
+
+    post:
+      summary: Create mortality record
+      tags: [Mortality]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMortalityRequest'
+      responses:
+        '201':
+          description: Mortality record created
+
+  # ========== ENVIRONMENT ==========
+  /api/environment:
+    get:
+      summary: List environment readings
+      tags: [Environment]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merd_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 24
+      responses:
+        '200':
+          description: List of readings
+
+    post:
+      summary: Create environment reading
+      tags: [Environment]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnvironmentRequest'
+      responses:
+        '201':
+          description: Reading created
+
+  # ========== LOCATIONS ==========
+  /api/locations:
+    get:
+      summary: List locations
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of locations
+
+  # ========== MERDS ==========
+  /api/merds:
+    get:
+      summary: List merds/cages
+      tags: [Merds]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locality_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of merds
+
+  # ========== DASHBOARD ==========
+  /api/stats:
+    get:
+      summary: Get dashboard statistics
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalCounts:
+                    type: integer
+                  todayCounts:
+                    type: integer
+                  avgAdultFemale:
+                    type: number
+                  aboveThreshold:
+                    type: integer
+
+  /api/stats/lice-trend:
+    get:
+      summary: Get lice trend data
+      tags: [Dashboard]
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 14
+      responses:
+        '200':
+          description: Trend data
+
+  /api/dashboard/overview:
+    get:
+      summary: Dashboard overview
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: Overview data
+
+  # ========== PREDICTIONS ==========
+  /api/predictions:
+    get:
+      summary: List predictions
+      tags: [Predictions]
+      parameters:
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      responses:
+        '200':
+          description: List of predictions
+
+  /api/predictions/summary:
+    get:
+      summary: Prediction summary
+      tags: [Predictions]
+      responses:
+        '200':
+          description: Summary data
+
+  /api/risk-scores:
+    get:
+      summary: Risk scores
+      tags: [Predictions]
+      responses:
+        '200':
+          description: Risk scores
+
+  # ========== NOTIFICATIONS ==========
+  /api/push/vapid-public-key:
+    get:
+      summary: Get VAPID public key for push notifications
+      tags: [Notifications]
+      responses:
+        '200':
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey:
+                    type: string
+                    description: Base64-encoded VAPID public key
+
+  /api/push/subscribe:
+    post:
+      summary: Subscribe to push notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscription'
+      responses:
+        '201':
+          description: Subscription created
+        '400':
+          description: Invalid subscription data
+
+  /api/push/unsubscribe:
+    post:
+      summary: Unsubscribe from push notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+      responses:
+        '200':
+          description: Unsubscribed successfully
+
+  /api/alert-preferences:
+    get:
+      summary: Get user's alert preferences
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Alert preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertPreferences'
+
+    put:
+      summary: Update alert preferences
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertPreferences'
+      responses:
+        '200':
+          description: Preferences updated
+
+  /api/sms/send:
+    post:
+      summary: Send SMS notification (admin only)
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+                - message
+              properties:
+                phone_number:
+                  type: string
+                  pattern: '^(\+47)?[2-9]\d{7}$'
+                message:
+                  type: string
+                  maxLength: 160
+      responses:
+        '200':
+          description: SMS sent
+        '403':
+          description: Not authorized
+
+  # ========== REPORTS ==========
+  /api/reports/pdf/mattilsynet:
+    get:
+      summary: Generate Mattilsynet PDF report
+      description: |
+        Generates an official PDF report for the Norwegian Food Safety Authority (Mattilsynet).
+        Report includes lice counts, compliance status, and treatment history.
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          schema:
+            type: string
+          description: Filter by location
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/reports/pdf/treatment:
+    get:
+      summary: Generate treatment history PDF report
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/reports/pdf/lice:
+    get:
+      summary: Generate lice summary PDF report
+      tags: [Reports]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # ========== MONITORING ==========
+  /monitoring/health:
+    get:
+      summary: Detailed health check
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+
+  /monitoring/metrics:
+    get:
+      summary: Get system metrics
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uptime:
+                    type: number
+                  memory:
+                    type: object
+                  requests:
+                    type: object
+
+  /monitoring/status:
+    get:
+      summary: Get API status
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: API status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  environment:
+                    type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - full_name
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.no
+        password:
+          type: string
+          minLength: 8
+          description: |
+            Must contain at least 8 characters including:
+            - One uppercase letter (A-Z)
+            - One lowercase letter (a-z)
+            - One number (0-9)
+            - One special character (!@#$%^&*(),.?":{}|<>)
+          example: SecurePass123!
+        full_name:
+          type: string
+          example: Ola Nordmann
+        company_name:
+          type: string
+          example: Fjordbruk AS
+        org_number:
+          type: string
+          pattern: '^\d{9}$'
+          description: Norwegian organization number (9 digits)
+          example: '123456789'
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        message:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [admin, driftsleder, røkter, viewer]
+        company_id:
+          type: string
+          format: uuid
+
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Valideringsfeil
+        details:
+          type: array
+          items:
+            type: string
+
+    Sample:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sample_id:
+          type: string
+        merd_id:
+          type: string
+          format: uuid
+        dato:
+          type: string
+          format: date
+        antall_fisk:
+          type: integer
+        temperatur:
+          type: number
+        fish_observations:
+          type: array
+          items:
+            $ref: '#/components/schemas/FishObservation'
+
+    FishObservation:
+      type: object
+      properties:
+        fish_id:
+          type: string
+        voksne_hunnlus:
+          type: integer
+        bevegelige_lus:
+          type: integer
+        fastsittende_lus:
+          type: integer
+
+    CreateSampleRequest:
+      type: object
+      required:
+        - merd_id
+        - dato
+        - antall_fisk
+      properties:
+        merd_id:
+          type: string
+          format: uuid
+        dato:
+          type: string
+          format: date
+        antall_fisk:
+          type: integer
+          minimum: 1
+        temperatur:
+          type: number
+        notat:
+          type: string
+        fish_observations:
+          type: array
+          items:
+            type: object
+            properties:
+              voksne_hunnlus:
+                type: integer
+              bevegelige_lus:
+                type: integer
+              fastsittende_lus:
+                type: integer
+
+    CreateTreatmentRequest:
+      type: object
+      required:
+        - treatment_type
+        - scheduled_date
+      properties:
+        merd_id:
+          type: string
+          format: uuid
+        locality_name:
+          type: string
+        treatment_type:
+          type: string
+          enum: [Hydrogenperoksid, Termisk, Mekanisk, Rensefisk, Ferskvann, Imidakloprid]
+        scheduled_date:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    UpdateTreatmentRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [planlagt, pågår, fullført, kansellert]
+        completed_date:
+          type: string
+          format: date
+        lice_after:
+          type: number
+        effectiveness_percent:
+          type: number
+        notes:
+          type: string
+
+    CreateMortalityRequest:
+      type: object
+      required:
+        - merd_id
+        - record_date
+      properties:
+        merd_id:
+          type: string
+          format: uuid
+        record_date:
+          type: string
+          format: date
+        salmon_dead:
+          type: integer
+        salmon_cause:
+          type: string
+        cleaner_fish_dead:
+          type: integer
+        mortality_category:
+          type: string
+          enum: [normal, behandling, sykdom, håndtering, predator, miljø, annet]
+
+    CreateEnvironmentRequest:
+      type: object
+      required:
+        - merd_id
+      properties:
+        merd_id:
+          type: string
+          format: uuid
+        temperature_celsius:
+          type: number
+        oxygen_percent:
+          type: number
+        salinity_ppt:
+          type: number
+        ph:
+          type: number
+
+    # ========== ERROR SCHEMAS ==========
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Valideringsfeil
+            requestId:
+              type: string
+              description: Unique request ID for tracing
+              example: 1706803200000-abc123def456
+            timestamp:
+              type: string
+              format: date-time
+            details:
+              type: object
+              description: Additional error details (validation errors, etc.)
+
+    # ========== NOTIFICATION SCHEMAS ==========
+    PushSubscription:
+      type: object
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        expirationTime:
+          type: integer
+          nullable: true
+        keys:
+          type: object
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+            auth:
+              type: string
+
+    AlertPreferences:
+      type: object
+      properties:
+        email_notifications:
+          type: boolean
+          default: true
+        sms_notifications:
+          type: boolean
+          default: false
+        push_notifications:
+          type: boolean
+          default: true
+        email_address:
+          type: string
+          format: email
+        phone_number:
+          type: string
+          pattern: '^(\+47)?[2-9]\d{7}$'
+        lice_threshold_warning:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.3
+          description: Warning threshold for adult female lice per fish
+        lice_threshold_critical:
+          type: number
+          minimum: 0
+          maximum: 2
+          default: 0.5
+          description: Critical threshold (Mattilsynet limit is 0.5, or 0.2 in spring)
+        notify_on_critical:
+          type: boolean
+          default: true
+        notify_on_treatment:
+          type: boolean
+          default: true
+        notify_on_mortality:
+          type: boolean
+          default: false
+        daily_summary:
+          type: boolean
+          default: false
+
+    # ========== MONITORING SCHEMAS ==========
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        checks:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency:
+                  type: number
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+            externalApis:
+              type: object
+              properties:
+                barentswatch:
+                  type: string
