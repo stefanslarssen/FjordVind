@@ -63,40 +63,6 @@ export default function ChartsGrid({ chartData, localityData }) {
         )}
       </div>
 
-      {/* Mortality */}
-      <div style={{
-        background: '#4a5568',
-        borderRadius: '8px',
-        padding: '20px',
-        color: 'white'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginBottom: '16px'
-        }}>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
-              {t('dashboard.mortality')}
-            </div>
-          </div>
-          <div style={{ fontSize: '28px', fontWeight: 700 }}>
-            {localityData?.aggregated?.avgMortalityRate?.toFixed(2) || '0'}
-          </div>
-        </div>
-        {chartData.mortality?.length > 0 ? (
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={chartData.mortality}>
-              <Bar dataKey="rate" fill="rgba(255,255,255,0.7)" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
-            {t('common.noData')}
-          </div>
-        )}
-      </div>
-
       {/* Growth */}
       <div style={{
         background: '#5cb592',

@@ -166,17 +166,30 @@ export default function EnvironmentPage() {
       setUserLocations(locations)
 
       if (locations.length === 0) {
-        // No locations - show some default Norwegian coastal points
-        const defaultLocations = [
-          { id: 'bergen', name: 'Bergen-omradet', lat: 60.39, lon: 5.32 },
-          { id: 'trondheim', name: 'Trondheimsfjorden', lat: 63.43, lon: 10.39 },
-          { id: 'tromso', name: 'Tromso-omradet', lat: 69.65, lon: 18.96 },
-          { id: 'stavanger', name: 'Stavanger-omradet', lat: 58.97, lon: 5.73 }
-        ]
-
-        const readings = await fetchReadingsForLocations(defaultLocations)
-        setReadings(readings)
-        calculateSummary(readings)
+        // No user locations - fetch data for a default Norwegian coastal point
+        const defaultLoc = { id: 'default', name: 'Norskekysten', lat: 60.39, lon: 5.32 }
+        try {
+          const envData = await fetchCompleteEnvironmentData(defaultLoc.lat, defaultLoc.lon, defaultLoc.name)
+          const reading = {
+            id: 'default',
+            merdName: '-',
+            locality: envData.locationName,
+            temperature: envData.data.temperature,
+            oxygenPercent: envData.data.oxygen,
+            salinity: envData.data.salinity,
+            ph: envData.data.ph,
+            timestamp: envData.timestamp,
+            isAnomaly: false,
+            isEstimate: true,
+            source: 'met.no'
+          }
+          setReadings([reading])
+          calculateSummary([reading])
+        } catch (err) {
+          console.error('Failed to fetch default environment data:', err)
+          setReadings([])
+          setSummary(null)
+        }
       } else {
         // Use user's locations (if they have coordinates)
         const locationsWithCoords = locations.filter(l => l.latitude && l.longitude).map(l => ({
@@ -286,7 +299,7 @@ export default function EnvironmentPage() {
   if (loading) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Laster miljodata...
+        Laster miljødata...
       </div>
     )
   }
@@ -305,7 +318,7 @@ export default function EnvironmentPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <h1 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            Miljodata
+            Miljødata
             <span style={{
               background: dataSource === 'supabase' ? 'var(--primary)' : '#f59e0b',
               padding: '4px 10px',
@@ -391,7 +404,7 @@ export default function EnvironmentPage() {
       {/* Manual Reading Form */}
       {showForm && (
         <div className="card" style={{ marginBottom: '24px' }}>
-          <h3 className="card-title">Registrer miljomaling</h3>
+          <h3 className="card-title">Registrer miljømaling</h3>
 
           {formError && (
             <div style={{
@@ -747,7 +760,7 @@ export default function EnvironmentPage() {
         <h3 className="card-title">Malinger per merd</h3>
         {filteredReadings.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
-            Ingen miljodata tilgjengelig
+            Ingen miljødata tilgjengelig
           </p>
         ) : (
           <table className="table">

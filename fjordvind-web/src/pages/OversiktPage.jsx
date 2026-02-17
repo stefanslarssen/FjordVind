@@ -10,6 +10,7 @@ import {
   fetchAlerts,
   fetchDashboardStats
 } from '../services/supabase'
+import { fetchCompleteEnvironmentData } from '../services/environmentApi'
 
 export default function OversiktPage() {
   const navigate = useNavigate()
@@ -28,6 +29,7 @@ export default function OversiktPage() {
   const [loading, setLoading] = useState(true)
   const [showFilter, setShowFilter] = useState(false)
   const [viewDate, setViewDate] = useState(new Date().toISOString().split('T')[0])
+  const [envData, setEnvData] = useState(null)
 
   useEffect(() => {
     loadAllData()
@@ -83,6 +85,19 @@ export default function OversiktPage() {
 
       setAlerts(alertData.alerts || [])
       setStats(statsData)
+
+      // Fetch environment data from met.no
+      try {
+        // Use first location with coordinates, or default to Bergen area
+        const locWithCoords = locs.find(l => l.latitude && l.longitude)
+        const lat = locWithCoords?.latitude || 60.39
+        const lon = locWithCoords?.longitude || 5.32
+        const locName = locWithCoords?.name || 'Norskekysten'
+        const env = await fetchCompleteEnvironmentData(lat, lon, locName)
+        setEnvData(env)
+      } catch (envError) {
+        console.error('Failed to load environment data:', envError)
+      }
 
     } catch (error) {
       console.error('Failed to load data:', error)
@@ -420,59 +435,6 @@ export default function OversiktPage() {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ opacity: 0.7 }}>{t('dashboard.mostLiceIn')}</div>
                 <div style={{ fontWeight: 600 }}>{monthlyStats?.lice?.mostLiceMerds?.join(', ') || '-'}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mortality Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, #0d9488 0%, #115e59 100%)',
-            borderRadius: '12px',
-            padding: '20px',
-            color: 'var(--text)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <div style={{ fontSize: '13px', opacity: 0.9, marginBottom: '4px' }}>{t('dashboard.mortality')} ~</div>
-                <div style={{ fontSize: '32px', fontWeight: 700 }}>{(monthlyStats?.mortality?.totalCount || 0).toLocaleString()}</div>
-                <div style={{ fontSize: '11px', opacity: 0.8 }}>{t('dashboard.totalLoss')}</div>
-              </div>
-            </div>
-            <div style={{ position: 'relative', height: '50px', marginBottom: '12px' }}>
-              {mortalityMonthlyData.length > 0 ? (
-                <svg width="100%" height="100%" viewBox="0 0 100 50" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="mortalityGradientOversikt" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(255,255,255,0.4)" />
-                      <stop offset="100%" stopColor="rgba(255,255,255,0.1)" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d={`M0,${50 - (mortalityMonthlyData[0] / Math.max(...mortalityMonthlyData, 1)) * 45} ${mortalityMonthlyData.map((v, i) => `L${(i / (mortalityMonthlyData.length - 1 || 1)) * 100},${50 - (v / Math.max(...mortalityMonthlyData, 1)) * 45}`).join(' ')} L100,50 L0,50 Z`}
-                    fill="url(#mortalityGradientOversikt)"
-                  />
-                  <path
-                    d={`M0,${50 - (mortalityMonthlyData[0] / Math.max(...mortalityMonthlyData, 1)) * 45} ${mortalityMonthlyData.map((v, i) => `L${(i / (mortalityMonthlyData.length - 1 || 1)) * 100},${50 - (v / Math.max(...mortalityMonthlyData, 1)) * 45}`).join(' ')}`}
-                    fill="none"
-                    stroke="rgba(255,255,255,0.8)"
-                    strokeWidth="2"
-                  />
-                </svg>
-              ) : (
-                <div style={{ opacity: 0.5, textAlign: 'center', fontSize: '11px', paddingTop: '15px' }}>{t('common.noData')}</div>
-              )}
-            </div>
-            <div style={{ display: 'flex', fontSize: '9px', opacity: 0.7, justifyContent: 'space-between' }}>
-              {months.map(m => <span key={m}>{m}</span>)}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '10px' }}>
-              <div>
-                <div style={{ opacity: 0.7 }}>{t('dashboard.leastLossIn')}</div>
-                <div style={{ fontWeight: 600 }}>{monthlyStats?.mortality?.leastDeathsMerds?.join(', ') || '-'}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ opacity: 0.7 }}>{t('dashboard.mostLossIn')}</div>
-                <div style={{ fontWeight: 600 }}>{monthlyStats?.mortality?.mostDeathsMerds?.join(', ') || '-'}</div>
               </div>
             </div>
           </div>
@@ -978,31 +940,6 @@ export default function OversiktPage() {
             </div>
           </div>
 
-          {/* Dødelighet */}
-          <div style={{
-            background: 'var(--panel)',
-            borderRadius: '12px',
-            padding: '20px 24px',
-            border: '1px solid var(--border)'
-          }}>
-            <div style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '12px' }}>
-              {t('dashboard.mortalityTitle')}
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <span style={{ color: '#f59e0b', fontSize: '48px', fontWeight: 700 }}>
-                {statsData.mortalityRate?.toFixed(2) || '0'}
-              </span>
-              <span style={{ color: 'var(--muted)', fontSize: '24px' }}>%</span>
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '12px' }}>
-              {t('dashboard.lossLast30Days')}
-            </div>
-            {statsData.mortalityChange !== undefined && (
-              <div style={{ color: statsData.mortalityChange > 0 ? '#ef4444' : '#22c55e', fontSize: '13px', fontWeight: 600 }}>
-                {statsData.mortalityChange > 0 ? '↑' : '↓'} {statsData.mortalityChange > 0 ? '+' : ''}{statsData.mortalityChange}% {t('dashboard.fromLastMonth')}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Miljøparametere Section */}
@@ -1016,25 +953,78 @@ export default function OversiktPage() {
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
+            justifyContent: 'space-between',
             marginBottom: '20px'
           }}>
-            <span style={{ fontSize: '18px', fontWeight: 600 }}>{t('dashboard.environmentParameters')}</span>
-            <span style={{
-              background: '#22c55e',
-              color: 'var(--text)',
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '4px 10px',
-              borderRadius: '4px'
-            }}>
-              {t('dashboard.liveData')}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '18px', fontWeight: 600 }}>{t('dashboard.environmentParameters')}</span>
+              <span style={{
+                background: envData ? '#f59e0b' : '#6b7280',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '4px 10px',
+                borderRadius: '4px'
+              }}>
+                {envData ? 'MET.NO' : 'INGEN DATA'}
+              </span>
+            </div>
+            {envData && (
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                {envData.locationName} • {new Date(envData.timestamp).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
 
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
-            {t('common.noData')} - {t('dashboard.connectSensors')}
-          </div>
+          {envData ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>Temperatur</div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  color: envData.data.temperature >= 8 && envData.data.temperature <= 14 ? '#22c55e' :
+                         envData.data.temperature < 5 || envData.data.temperature > 18 ? '#ef4444' : '#f59e0b'
+                }}>
+                  {envData.data.temperature?.toFixed(1)}°C
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>Oksygen</div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  color: envData.data.oxygen >= 80 ? '#22c55e' : envData.data.oxygen >= 60 ? '#f59e0b' : '#ef4444'
+                }}>
+                  {envData.data.oxygen?.toFixed(0)}%
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>Salinitet</div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  color: envData.data.salinity >= 30 && envData.data.salinity <= 36 ? '#22c55e' : '#f59e0b'
+                }}>
+                  {envData.data.salinity?.toFixed(1)}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>pH</div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: 700,
+                  color: envData.data.ph >= 7.8 && envData.data.ph <= 8.4 ? '#22c55e' : '#f59e0b'
+                }}>
+                  {envData.data.ph?.toFixed(1)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>
+              Laster miljødata...
+            </div>
+          )}
         </div>
       </div>
 
